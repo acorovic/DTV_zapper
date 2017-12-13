@@ -16,11 +16,11 @@ static int32_t get_keys(int32_t count, uint8_t* buf, int32_t* events_read)
   if(ret <= 0)
   {
     printf("Error code %d", ret);
-    return ERROR;
+    return ERR;
   }
   /* calculate number of read events */
   *events_read = ret / (int)sizeof(struct input_event);
-  return NO_ERROR;
+  return NO_ERR;
 }
 
 static void* input_event_task()
@@ -32,7 +32,7 @@ static void* input_event_task()
         if (get_keys(NUM_EVENTS, (uint8_t*)event_buf, &event_cnt))
         {
             printf("Error while reading input events!\n");
-            return (void*)ERROR;
+            return (void*)ERR;
         }
         for (i = 0; i < event_cnt; i++)
         {
@@ -44,7 +44,7 @@ static void* input_event_task()
         }
     }
 
-    return (void*) NO_ERROR;
+    return (void*) NO_ERR;
 }
 
 int8_t remote_init()
@@ -55,7 +55,7 @@ int8_t remote_init()
     if (input_file_desc == -1)
     {
         printf("Error while opening device (%s)! \n", strerror(errno));
-        return ERROR;
+        return ERR;
     }
 
     ioctl(input_file_desc, EVIOCGNAME(sizeof(device_name)), device_name);
@@ -65,7 +65,7 @@ int8_t remote_init()
     if (!event_buf)
     {
         printf("Error allocating memory \n");
-        return ERROR;
+        return ERR;
     }
 
     remote_thread_running = 1;
@@ -73,10 +73,10 @@ int8_t remote_init()
     {
         remote_thread_running = 0;
         printf("Error creating thread for remote\n");
-        return ERROR;
+        return ERR;
     }
 
-    return NO_ERROR;
+    return NO_ERR;
 }
 
 void remote_set_decode_keypress(void (*callback)(uint16_t keycode)) {
@@ -90,9 +90,9 @@ int8_t remote_deinit() {
     if (pthread_join(remote_thread, NULL))
     {
         printf("Error during remote_thread join!\n");
-        return ERROR;
+        return ERR;
     }
 
     free(event_buf);
-    return NO_ERROR;
+    return NO_ERR;
 }

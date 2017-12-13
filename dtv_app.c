@@ -1,6 +1,6 @@
 #include "remote_controller.h"
-#include "common.h"
-
+#include "graphic_controller.h"
+#include "stream_controller.h"
 /* Struct used to repesent app state */
 struct app_state{
     int8_t app_running;
@@ -46,21 +46,22 @@ int32_t main() {
     stb_state.current_channel = MIN_CHANNEL;
 
 	status = tuner_init(754000000);
-    if(status == ERROR) {
+    if(status == ERR) {
 		tuner_deinit();
-		return ERROR;
+		return ERR;
 	}
 	remote_set_decode_keypress(decode_keypress);
     status = remote_init();
-	
+	status = graphic_init();	
 	filter_pat();
     
 	play_channel(0);
-
+	graphic_draw_channel_no(0);
 	while (stb_state.app_running) {
         
     }
 
+//	status = graphic_deinit();	
     status = remote_deinit();
     status = tuner_deinit();
     return 0;

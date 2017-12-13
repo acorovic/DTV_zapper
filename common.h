@@ -13,8 +13,8 @@
 #define KEYCODE_INFO 		358
 
 /* error codes */
-#define NO_ERROR 		0
-#define ERROR			1
+#define NO_ERR 		0
+#define ERR			1
 #define PTHREAD_ERROR 	2
 
 /* table infos */

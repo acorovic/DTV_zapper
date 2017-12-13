@@ -141,14 +141,6 @@ int8_t play_channel(int8_t channel_no) {
 	service_t channel_info;
 	pmt_t channel_pmt;
 
-	
-	channel_info = service_info_array[channel_no];
-	printf("%d channel_no \n", channel_no);	
-	printf("%d pid to parse \n", channel_info.pid);
-	filter_pmt(channel_info.pid);
-
-	channel_pmt = pmt_info;
-
 	if (audio_running == 1) {
 		Player_Stream_Remove(player_handle, source_handle, audio_handle);
 	}
@@ -156,6 +148,10 @@ int8_t play_channel(int8_t channel_no) {
 	if (video_running == 1) {
 		Player_Stream_Remove(player_handle, source_handle, video_handle);
 	}
+	
+	channel_info = service_info_array[channel_no];
+	filter_pmt(channel_info.pid);
+	channel_pmt = pmt_info;
 	
 	if (channel_pmt.has_video == 1)
 	{
