@@ -11,13 +11,13 @@ ROOTFS_PATH=$(SDK_ROOTFS)
 
 INCS =	-I./../../tdp_api
 INCS += -I./include/ 							\
-		-I$(SYSROOT)/usr/include/         \
+		-I$(SYSROOT)/usr/include/         		\
 		-I$(GALOIS_INCLUDE)/Common/include/     \
 		-I$(GALOIS_INCLUDE)/OSAL/include/		\
 		-I$(GALOIS_INCLUDE)/OSAL/include/CPU1/	\
 		-I$(GALOIS_INCLUDE)/PE/Common/include/  \
-		-I./ \
-		-I$(ROOTFS_PATH)/usr/include \
+		-I./ 									\
+		-I$(ROOTFS_PATH)/usr/include 			\
 		-I$(ROOTFS_PATH)/usr/include/directfb/
 
 LIBS_PATH = -L./../../tdp_api
@@ -36,8 +36,10 @@ CXXFLAGS = $(CFLAGS)
 
 all: parser_playback_sample
 
-SRCS =  ./dtv_app.c \
-		./remote_controller.c
+SRCS =  ./dtv_app.c 		  	\
+		./remote_controller.c 	\
+		./stream_controller.c
+
 parser_playback_sample:
 	$(CC) -o zapper $(INCS) $(SRCS) $(CFLAGS) $(LIBS)
     

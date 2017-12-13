@@ -17,4 +17,8 @@
 #define ERROR			1
 #define PTHREAD_ERROR 	2
 
+/* table infos */
+#define PAT_PID     0
+#define PAT_TABLEID 0
+#define PMT_TABLEID 2
 #endif /* COMMON_H */

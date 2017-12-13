@@ -43,14 +43,16 @@ int32_t main() {
     stb_state.app_running = 1;
     stb_state.current_channel = MIN_CHANNEL;
 
-    status = remote_init();
+    status = tuner_init();
     remote_set_decode_keypress(decode_keypress);
+    status = remote_init();
+    filter_pat();
 
     while (stb_state.app_running) {
         
     }
 
     status = remote_deinit();
-
+    status = tuner_deinit();
     return 0;
 }
