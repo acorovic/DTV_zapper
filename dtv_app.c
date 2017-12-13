@@ -22,12 +22,14 @@ static void decode_keypress(uint16_t keycode)
             {
                 stb_state.current_channel = MIN_CHANNEL;
             }
+			play_channel(stb_state.current_channel);
             break;
         case KEYCODE_P_MINUS:
             if (--stb_state.current_channel < MIN_CHANNEL)
             {
                 stb_state.current_channel = MAX_CHANNEL;
             }
+			play_channel(stb_state.current_channel);
             break;
         case KEYCODE_EXIT:
             stb_state.app_running = 0;
@@ -43,12 +45,19 @@ int32_t main() {
     stb_state.app_running = 1;
     stb_state.current_channel = MIN_CHANNEL;
 
-    status = tuner_init();
-    remote_set_decode_keypress(decode_keypress);
+	status = tuner_init(754000000);
+    if(status == ERROR) {
+		tuner_deinit();
+		return ERROR;
+	}
+	remote_set_decode_keypress(decode_keypress);
     status = remote_init();
-    filter_pat();
+	
+	filter_pat();
+    
+	play_channel(0);
 
-    while (stb_state.app_running) {
+	while (stb_state.app_running) {
         
     }
 

@@ -29,7 +29,7 @@ static void* input_event_task()
     uint16_t i;
     while (remote_thread_running)
     {
-        if (get_keys(NUM_EVENTS, (uint8_t*)&event_buf, &event_cnt))
+        if (get_keys(NUM_EVENTS, (uint8_t*)event_buf, &event_cnt))
         {
             printf("Error while reading input events!\n");
             return (void*)ERROR;
@@ -81,6 +81,7 @@ int8_t remote_init()
 
 void remote_set_decode_keypress(void (*callback)(uint16_t keycode)) {
     decode_keypress = callback;
+	printf("decode_keypress callback set \n");
 }
 
 int8_t remote_deinit() {

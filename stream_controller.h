@@ -8,8 +8,8 @@
 #include "errno.h"
 #include "tdp_api.h"
 #include "common.h"
-#define LOCK_TIME 5
-
+#define LOCK_TIME 10
+#define NUM_EVENTS 5
 static inline void textColor(int32_t attr, int32_t fg, int32_t bg)
 {
    char command[13];
@@ -31,9 +31,13 @@ static inline void textColor(int32_t attr, int32_t fg, int32_t bg)
 typedef struct service {
     uint16_t program_no;
     uint16_t pid;
-    uint16_t video_pid;
-    uint16_t audio_pid[10];
 } service_t;
+
+typedef struct pmt {
+	uint16_t has_video;
+	uint16_t video_pid;
+	uint16_t audio_pid[4];
+} pmt_t;
 
 int8_t tuner_init(uint32_t frequency);
 int8_t tuner_deinit();
@@ -41,7 +45,10 @@ int8_t tuner_deinit();
 int8_t demux_init(uint32_t PID, uint32_t tableID, int32_t(*demux_filter_callback)(uint8_t* buffer));
 int8_t demux_deinit(int32_t(*demux_filter_callback)(uint8_t* buffer));
 
+int8_t play_channel(int8_t channel_no);
+int8_t stop_channel();
+
 int8_t filter_pat();
-int8_t filter_pmt(int8_t channel_pid);
+int8_t filter_pmt(uint16_t channel_pid);
 
 #endif

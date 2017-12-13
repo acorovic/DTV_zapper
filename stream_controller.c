@@ -8,8 +8,14 @@ static pthread_cond_t condition_pmt = PTHREAD_COND_INITIALIZER;
 static uint32_t player_handle;
 static uint32_t source_handle;
 static uint32_t filter_handle;
+static uint32_t video_handle;
+static uint32_t audio_handle;
+
+static int8_t video_running = 0;
+static int8_t audio_running = 0;
 
 static service_t service_info_array[10];
+static pmt_t pmt_info;
 
 static int32_t pat_filter_callback(uint8_t* buffer) {
 	uint16_t section_length;
@@ -97,11 +103,12 @@ static int32_t pmt_filter_callback(uint8_t* buffer) {
                          & 0x0fff);
         printf("Stream type %d, elementary PID %d, es_info %d\n", stream_type, elementary_PID, ES_info_length);
         if(stream_type == 2) {
-            service_info_array[0].video_pid = elementary_PID;
-        } else if(stream_type == 3) {
-            service_info_array[0].audio_pid[0] = elementary_PID;
+            pmt_info.video_pid = elementary_PID;
+        	pmt_info.has_video = 1;
+		} else if(stream_type == 3) {
+            pmt_info.audio_pid[0] = elementary_PID;
         } else if(stream_type == 4) {
-            service_info_array[0].audio_pid[1] = elementary_PID;
+            pmt_info.audio_pid[1] = elementary_PID;
         }
         n -= (5 + ES_info_length);
         if(n > 0) {
@@ -129,11 +136,65 @@ static int32_t tuner_callback(t_LockStatus status) {
 	return 0;
 }
 
+int8_t play_channel(int8_t channel_no) {
+	t_Error status;
+	service_t channel_info;
+	pmt_t channel_pmt;
+
+	
+	channel_info = service_info_array[channel_no];
+	printf("%d channel_no \n", channel_no);	
+	printf("%d pid to parse \n", channel_info.pid);
+	filter_pmt(channel_info.pid);
+
+	channel_pmt = pmt_info;
+
+	if (audio_running == 1) {
+		Player_Stream_Remove(player_handle, source_handle, audio_handle);
+	}
+
+	if (video_running == 1) {
+		Player_Stream_Remove(player_handle, source_handle, video_handle);
+	}
+	
+	if (channel_pmt.has_video == 1)
+	{
+		status = Player_Stream_Create(player_handle, source_handle, 
+									channel_pmt.video_pid, VIDEO_TYPE_MPEG2,
+									&video_handle);
+		ASSERT_TDP_RESULT(status, "video stream");
+		video_running = 1;
+	}
+	status = Player_Stream_Create(player_handle, source_handle,
+								channel_pmt.audio_pid[0], AUDIO_TYPE_MPEG_AUDIO,
+								&audio_handle);
+	ASSERT_TDP_RESULT(status, "audio stream");
+	audio_running = 1;
+
+	return NO_ERROR;	
+}
+
+
 int8_t tuner_init(uint32_t frequency) {
 	t_Error status;
 	struct timeval now;
 	struct timespec time_to_wait;
 	int8_t rt;
+	int8_t i;
+	int8_t j;
+	
+	for (i = 0; i < 20; i++)
+	{
+		service_info_array[i].program_no = 0;
+		service_info_array[i].pid = 0;
+	}
+
+	pmt_info.has_video = 0;
+	pmt_info.video_pid = 0;
+	for (i = 0; i < 4; i++)
+	{
+		pmt_info.audio_pid[i] = 0;
+	}	
 
 	status = Tuner_Init();
 	ASSERT_TDP_RESULT(status, "tuner init");
@@ -144,9 +205,11 @@ int8_t tuner_init(uint32_t frequency) {
 	status = Tuner_Lock_To_Frequency(frequency, 8, DVB_T);
 	ASSERT_TDP_RESULT(status, "tuner lock");
 
+
+	printf("%d lock time \n");
 	gettimeofday(&now, NULL);
 	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME;
-	time_to_wait.tv_nsec = now.tv_usec;
+	time_to_wait.tv_nsec = now.tv_usec + LOCK_TIME;
 
 	pthread_mutex_lock(&mutex);
 	rt = pthread_cond_timedwait(&condition, &mutex, &time_to_wait);
@@ -237,25 +300,27 @@ int8_t filter_pat() {
     return NO_ERROR;
 }
 
-int8_t filter_pmt(int8_t channel_pid) {
+int8_t filter_pmt(uint16_t channel_pid) {
     int8_t rt;
     struct timeval now;
 	struct timespec time_to_wait;
 	t_Error status;
+
+	printf("channel pid filter_pmt %d\n", channel_pid);
 
     status = demux_init(channel_pid, PMT_TABLEID, pmt_filter_callback);
 	ASSERT_TDP_RESULT(status, "set pmt demux");
 
     gettimeofday(&now, NULL);
 	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME;
-	time_to_wait.tv_nsec = now.tv_usec;
+	time_to_wait.tv_nsec = now.tv_usec + LOCK_TIME;
 
     pthread_mutex_lock(&mutex);
     rt = pthread_cond_timedwait(&condition_pmt, &mutex, &time_to_wait);
     if (rt == ETIMEDOUT)
     {
         printf("Couldn't parse PMT!\n");
-        return ERROR;
+	    return ERROR;
     }
     pthread_mutex_unlock(&mutex);
 

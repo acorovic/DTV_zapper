@@ -15,7 +15,7 @@
 #define ERROR 1
 #define NUM_EVENTS 5
 #define MAX_CHANNEL 10
-#define MIN_CHANNEL 1
+#define MIN_CHANNEL 0
 int8_t remote_init();
 
 void remote_set_decode_keypress(void (*callback)(uint16_t keycode));
