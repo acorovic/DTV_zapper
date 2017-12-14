@@ -21,4 +21,12 @@
 #define PAT_PID     0
 #define PAT_TABLEID 0
 #define PMT_TABLEID 2
+#define TDT_PID 	0x0014
+#define TDT_TABLEID 0x70
+
+typedef struct time{
+	uint8_t hour;
+	uint8_t minute;
+} tdt_time_t;
+
 #endif /* COMMON_H */

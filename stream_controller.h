@@ -48,9 +48,11 @@ int8_t demux_init(uint32_t PID, uint32_t tableID, int32_t(*demux_filter_callback
 int8_t demux_deinit(int32_t(*demux_filter_callback)(uint8_t* buffer));
 
 int8_t play_channel(int8_t channel_no);
+tdt_time_t get_time();
 int8_t stop_channel();
 
 int8_t filter_pat();
 int8_t filter_pmt(uint16_t channel_pid);
+int8_t filter_tdt();
 
 #endif

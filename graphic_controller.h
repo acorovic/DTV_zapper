@@ -23,11 +23,15 @@ if (err != DFB_OK)                                          \
 
 #define CHANNEL_BANNER_WIDTH 	100
 #define CHANNEL_BANNER_HEIGHT 	70
+#define TIME_BANNER_WIDTH 		500
+#define TIME_BANNER_HEIGHT 		100
 #define FONT_HEIGHT 			40
+
 
 int8_t graphic_init();
 int8_t graphic_deinit();
 
 int8_t graphic_draw_channel_no(uint8_t channel_no);
+int8_t graphic_draw_time(tdt_time_t time);
 
 #endif

@@ -13,12 +13,18 @@ static pthread_t render_thread;
 static int8_t render_running;
 
 static int8_t draw_channel_no_flag;
+static int8_t draw_time_flag;
+
 static char channel_no_str[5];
+static char time_str[5];
+
+static timer_t timer_time;
 static timer_t timer_channel;
 static int32_t timer_flags;
 static struct itimerspec timerSpec;
 static struct itimerspec timerSpecOld;
 
+static struct sigevent time_event;
 static struct sigevent channel_no_event;
 
 static void draw_channel_no_fcn() {
@@ -33,6 +39,23 @@ static void draw_channel_no_fcn() {
 								CHANNEL_BANNER_HEIGHT/2, DSTF_LEFT));
 }
 
+static void draw_time_fcn() {
+	DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
+	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2,
+									 screen_height - TIME_BANNER_HEIGHT,
+									 TIME_BANNER_WIDTH,
+									 TIME_BANNER_HEIGHT));
+
+	DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0xff, 0xff));
+	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2 + 10,
+									 screen_height - TIME_BANNER_HEIGHT + 10,
+									TIME_BANNER_WIDTH - 20,
+									TIME_BANNER_HEIGHT - 20));
+	DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
+	DFBCHECK(primary->DrawString(primary, time_str, -1, screen_width/2 - 100,
+								screen_height - TIME_BANNER_HEIGHT/2, DSTF_LEFT));
+}
+
 static void* render_fcn() {
 	while(render_running) {
 		/* Clear graphic */
@@ -43,6 +66,11 @@ static void* render_fcn() {
 			draw_channel_no_fcn();
 		}
 
+		/* Check time flag */
+		if(draw_time_flag) {
+			draw_time_fcn();
+		}
+
 		DFBCHECK(primary->Flip(primary, NULL, 0));
 	}
 }
@@ -51,13 +79,30 @@ int8_t graphic_draw_channel_no(uint8_t channel_no) {
 	memset(&timerSpec, 0, sizeof(timerSpec));
 	timerSpec.it_value.tv_sec = 3;
 	timerSpec.it_value.tv_nsec = 0;
+	sprintf(channel_no_str, "%d", channel_no);	
+
 	timer_settime(timer_channel, timer_flags, &timerSpec, &timerSpecOld);
 
 	draw_channel_no_flag = 1;
 }
 
+int8_t graphic_draw_time(tdt_time_t time) {
+	memset(&timerSpec, 0, sizeof(timerSpec));
+	timerSpec.it_value.tv_sec = 3;
+	timerSpec.it_value.tv_nsec = 0;
+	timer_settime(timer_time, timer_flags, &timerSpec, &timerSpecOld);
+	sprintf(time_str, "%x:%x", time.hour, time.minute);	
+	draw_time_flag = 1;
+}
+
 static void clr_channel_no_flag() {
 	draw_channel_no_flag = 0;
+}
+
+static void clr_time_flag() {
+	printf("upao !!!!!!!!!!!!!\n");
+
+	draw_time_flag = 0;
 }
 
 int8_t graphic_init() {
@@ -75,6 +120,9 @@ int8_t graphic_init() {
 
 	/* Fetch the screen size */
 	DFBCHECK(primary->GetSize(primary, &screen_width, &screen_height));
+
+	printf("Screen width: %d \n", screen_width);
+	printf("Screen height %d \n", screen_height);
 
 	/* Clear the screen before drawing anything (draw black full screen rect(alpha 0)) */
 	DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0x00, 0x00));
@@ -94,6 +142,12 @@ int8_t graphic_init() {
 	channel_no_event.sigev_notify_attributes = NULL;
 	timer_create(CLOCK_REALTIME, &channel_no_event, &timer_channel);
 
+	time_event.sigev_notify = SIGEV_THREAD;
+	time_event.sigev_notify_function = (void*)clr_time_flag;
+	time_event.sigev_value.sival_ptr = NULL;
+	time_event.sigev_notify_attributes = NULL;
+	timer_create(CLOCK_REALTIME, &channel_no_event, &timer_time);
+
 	render_running = 1;
 	if (pthread_create(&render_thread, NULL, &render_fcn, NULL))
     {
@@ -105,7 +159,7 @@ int8_t graphic_init() {
 	return NO_ERR;
 }
 
-int8_t graphic_deinint() {
+int8_t graphic_deinit() {
 	render_running = 0;
 
 	if (pthread_join(render_thread, NULL))

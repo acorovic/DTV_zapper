@@ -16,6 +16,7 @@ static void decode_keypress(uint16_t keycode)
     {
         case KEYCODE_INFO:
             printf("Currently on channel %d\n", stb_state.current_channel);
+			graphic_draw_time(get_time());
             break;
         case KEYCODE_P_PLUS:
             if (++stb_state.current_channel > MAX_CHANNEL)
@@ -61,7 +62,7 @@ int32_t main() {
         
     }
 
-//	status = graphic_deinit();	
+	status = graphic_deinit();	
     status = remote_deinit();
     status = tuner_deinit();
     return 0;
