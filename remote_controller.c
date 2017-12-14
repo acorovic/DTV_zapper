@@ -13,7 +13,7 @@ static int32_t get_keys(int32_t count, uint8_t* buf, int32_t* events_read)
 
   /* read input events and put them in buffer */
   ret = read(input_file_desc, buf, (size_t)(count * (int)sizeof(struct input_event)));
-  if(ret <= 0)
+  if (ret <= 0)
   {
     printf("Error code %d", ret);
     return ERR;
@@ -79,12 +79,14 @@ int8_t remote_init()
     return NO_ERR;
 }
 
-void remote_set_decode_keypress(void (*callback)(uint16_t keycode)) {
+void remote_set_decode_keypress(void (*callback)(uint16_t keycode))
+{
     decode_keypress = callback;
 	printf("decode_keypress callback set \n");
 }
 
-int8_t remote_deinit() {
+int8_t remote_deinit()
+{
     remote_thread_running = 0;
 
     if (pthread_join(remote_thread, NULL))

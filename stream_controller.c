@@ -20,7 +20,8 @@ static service_t service_info_array[10];
 static pmt_t pmt_info;
 static tdt_time_t tdt_time;
 
-static int32_t pat_filter_callback(uint8_t* buffer) {
+static int32_t pat_filter_callback(uint8_t* buffer)
+{
 	uint16_t section_length;
 	uint16_t program_section_length;
 	uint16_t n = 0;
@@ -68,7 +69,8 @@ static int32_t pat_filter_callback(uint8_t* buffer) {
 	printf("Pat table parsed \n");
 }
 
-static int32_t pmt_filter_callback(uint8_t* buffer) {
+static int32_t pmt_filter_callback(uint8_t* buffer)
+{
    	uint16_t section_length;
 	uint16_t program_section_length;
 	uint16_t n = 0;
@@ -93,7 +95,8 @@ static int32_t pmt_filter_callback(uint8_t* buffer) {
     n = program_section_length;
     program_section_ptr = buffer + 12 + program_info_length;
 
-    while(n > 0) {
+    while (n > 0)
+    {
         uint8_t stream_type;
         uint16_t elementary_PID;
         uint16_t ES_info_length;
@@ -105,16 +108,20 @@ static int32_t pmt_filter_callback(uint8_t* buffer) {
                           (*(program_section_ptr + 3) << 8) + (*(program_section_ptr + 4))
                          & 0x0fff);
         printf("Stream type %d, elementary PID %d, es_info %d\n", stream_type, elementary_PID, ES_info_length);
-        if(stream_type == 2) {
+        if (stream_type == 2)
+        {
             pmt_info.video_pid = elementary_PID;
         	pmt_info.has_video = 1;
-		} else if(stream_type == 3) {
+		} else if (stream_type == 3)
+        {
             pmt_info.audio_pid[0] = elementary_PID;
-        } else if(stream_type == 4) {
+        } else if (stream_type == 4)
+        {
             pmt_info.audio_pid[1] = elementary_PID;
         }
         n -= (5 + ES_info_length);
-        if(n > 0) {
+        if (n > 0)
+        {
             program_section_ptr += (5 + ES_info_length);
         }
     }
@@ -126,7 +133,8 @@ static int32_t pmt_filter_callback(uint8_t* buffer) {
 	return NO_ERR;
 }
 
-static int32_t tdt_filter_callback(uint8_t* buffer) {
+static int32_t tdt_filter_callback(uint8_t* buffer)
+{
 	uint16_t MJD = 0;
 	uint32_t UTC = 0;
 
@@ -139,7 +147,7 @@ static int32_t tdt_filter_callback(uint8_t* buffer) {
 		  (*(buffer+5) << 16) + (*(buffer+6) << 8) + ((*buffer+7)));
 
 	printf("MJD: %d, UTC %d \n");
-	
+
 	tdt_time.minute = (uint8_t) ((UTC & 0xff00) >> 8);
 	tdt_time.hour = (uint8_t) ((UTC & 0xff0000) >> 16);
 
@@ -154,7 +162,8 @@ static int32_t tdt_filter_callback(uint8_t* buffer) {
 	return NO_ERR;
 }
 
-static int32_t tuner_callback(t_LockStatus status) {
+static int32_t tuner_callback(t_LockStatus status)
+{
 	if (status == STATUS_LOCKED)
     {
 		pthread_mutex_lock(&mutex);
@@ -169,23 +178,26 @@ static int32_t tuner_callback(t_LockStatus status) {
 	return 0;
 }
 
-int8_t play_channel(int8_t channel_no) {
+int8_t play_channel(int8_t channel_no)
+{
 	t_Error status;
 	service_t channel_info;
 	pmt_t channel_pmt;
 
-	if (audio_running == 1) {
+	if (audio_running == 1)
+    {
 		Player_Stream_Remove(player_handle, source_handle, audio_handle);
 	}
 
-	if (video_running == 1) {
+	if (video_running == 1)
+    {
 		Player_Stream_Remove(player_handle, source_handle, video_handle);
 	}
-	
+
 	channel_info = service_info_array[channel_no];
 	filter_pmt(channel_info.pid);
 	channel_pmt = pmt_info;
-	
+
 	if (channel_pmt.has_video == 1)
 	{
 		status = Player_Stream_Create(player_handle, source_handle, 
@@ -200,7 +212,7 @@ int8_t play_channel(int8_t channel_no) {
 	ASSERT_TDP_RESULT(status, "audio stream");
 	audio_running = 1;
 
-	return NO_ERROR;	
+	return NO_ERROR;
 }
 
 tdt_time_t get_time() {
@@ -209,21 +221,22 @@ tdt_time_t get_time() {
 	time_read_success = 0;
 	filter_tdt();
 
-	if(time_read_success) {
+	if (time_read_success)
+    {
 		ret_val = tdt_time;
 	}
 	return ret_val;
 }
 
-
-int8_t tuner_init(uint32_t frequency) {
+int8_t tuner_init(uint32_t frequency)
+{
 	t_Error status;
 	struct timeval now;
 	struct timespec time_to_wait;
 	int8_t rt;
 	int8_t i;
 	int8_t j;
-	
+
 	for (i = 0; i < 20; i++)
 	{
 		service_info_array[i].program_no = 0;
@@ -235,7 +248,7 @@ int8_t tuner_init(uint32_t frequency) {
 	for (i = 0; i < 4; i++)
 	{
 		pmt_info.audio_pid[i] = 0;
-	}	
+	}
 
 	status = Tuner_Init();
 	ASSERT_TDP_RESULT(status, "tuner init");
@@ -271,7 +284,8 @@ int8_t tuner_init(uint32_t frequency) {
 	return NO_ERROR;
 }
 
-int8_t tuner_deinit() {
+int8_t tuner_deinit()
+{
 	t_Error status;
 
 	status = Tuner_Unregister_Status_Callback(tuner_callback);
@@ -289,8 +303,10 @@ int8_t tuner_deinit() {
 	return NO_ERROR;
 }
 
-int8_t demux_init(uint32_t PID, uint32_t tableID, int32_t (*demux_filter_callback)(uint8_t* buffer)) {
+int8_t demux_init(uint32_t PID, uint32_t tableID, int32_t (*demux_filter_callback)(uint8_t* buffer))
+{
     t_Error status;
+
     status = Demux_Set_Filter(player_handle, PID, tableID, &filter_handle);
 	ASSERT_TDP_RESULT(status, "demux set filter");
 
@@ -300,7 +316,8 @@ int8_t demux_init(uint32_t PID, uint32_t tableID, int32_t (*demux_filter_callbac
     return NO_ERROR;
 }
 
-int8_t demux_deinit(int32_t (*demux_filter_callback)(uint8_t* buffer)) {
+int8_t demux_deinit(int32_t (*demux_filter_callback)(uint8_t* buffer))
+{
     t_Error status;
 
     status = Demux_Unregister_Section_Filter_Callback(demux_filter_callback);
@@ -312,7 +329,8 @@ int8_t demux_deinit(int32_t (*demux_filter_callback)(uint8_t* buffer)) {
     return NO_ERROR;
 }
 
-int8_t filter_pat() {
+int8_t filter_pat()
+{
     int8_t rt;
     struct timeval now;
 	struct timespec time_to_wait;
@@ -341,7 +359,8 @@ int8_t filter_pat() {
     return NO_ERROR;
 }
 
-int8_t filter_pmt(uint16_t channel_pid) {
+int8_t filter_pmt(uint16_t channel_pid)
+{
     int8_t rt;
     struct timeval now;
 	struct timespec time_to_wait;
@@ -373,7 +392,8 @@ int8_t filter_pmt(uint16_t channel_pid) {
 }
 
 
-int8_t filter_tdt() {
+int8_t filter_tdt()
+{
     int8_t rt;
     struct timeval now;
 	struct timespec time_to_wait;

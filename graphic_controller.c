@@ -18,28 +18,34 @@ static int8_t draw_time_flag;
 static char channel_no_str[5];
 static char time_str[5];
 
+/* Timers used to hide graphic elements */
 static custom_timer_t timer_time;
 static custom_timer_t timer_channel;
 
 /* Function which work with DFB */
 static void draw_channel_no_fcn();
 static void draw_time_fcn();
+
 /* Callback which clear flags after timers expired */
 static void clr_channel_no_flag();
 static void clr_time_flag();
 
-static void* render_fcn() {
-	while(render_running) {
+static void* render_fcn()
+{
+	while (render_running)
+    {
 		/* Clear graphic */
 		DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0x00, 0x00));
 		DFBCHECK(primary->FillRectangle(primary, 0, 0, screen_width, screen_height));
 		/* Check channel no flag */
-		if(draw_channel_no_flag) {
+		if (draw_channel_no_flag)
+        {
 			draw_channel_no_fcn();
 		}
 
 		/* Check time flag */
-		if(draw_time_flag) {
+		if (draw_time_flag)
+        {
 			draw_time_fcn();
 		}
 
@@ -47,20 +53,22 @@ static void* render_fcn() {
 	}
 }
 
-int8_t graphic_draw_channel_no(uint8_t channel_no) {
-	sprintf(channel_no_str, "%d", channel_no);	
+int8_t graphic_draw_channel_no(uint8_t channel_no)
+{
+	sprintf(channel_no_str, "%d", channel_no);
 	custom_timer_start(&timer_channel, 3);
-
 	draw_channel_no_flag = 1;
 }
 
-int8_t graphic_draw_time(tdt_time_t time) {
-	sprintf(time_str, "%x:%x", time.hour, time.minute);	
+int8_t graphic_draw_time(tdt_time_t time)
+{
+	sprintf(time_str, "%x:%x", time.hour, time.minute);
 	custom_timer_start(&timer_time, 3);
 	draw_time_flag = 1;
 }
 
-int8_t graphic_init() {
+int8_t graphic_init()
+{
 	/* Initialize directFB */
 	DFBCHECK(DirectFBInit(NULL, NULL));
 	/* Fetch the directFB interface */
@@ -105,7 +113,8 @@ int8_t graphic_init() {
 	return NO_ERR;
 }
 
-int8_t graphic_deinit() {
+int8_t graphic_deinit()
+{
 	render_running = 0;
 
 	if (pthread_join(render_thread, NULL))
@@ -123,7 +132,8 @@ int8_t graphic_deinit() {
 	return NO_ERR;
 }
 
-static void draw_channel_no_fcn() {
+static void draw_channel_no_fcn()
+{
 	DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
 	DFBCHECK(primary->FillRectangle(primary, 0, 0, CHANNEL_BANNER_WIDTH, CHANNEL_BANNER_HEIGHT));
 
@@ -135,7 +145,8 @@ static void draw_channel_no_fcn() {
 								CHANNEL_BANNER_HEIGHT/2, DSTF_LEFT));
 }
 
-static void draw_time_fcn() {
+static void draw_time_fcn()
+{
 	DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
 	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2,
 									 screen_height - TIME_BANNER_HEIGHT,
@@ -152,10 +163,12 @@ static void draw_time_fcn() {
 								screen_height - TIME_BANNER_HEIGHT/2, DSTF_LEFT));
 }
 
-static void clr_channel_no_flag() {
+static void clr_channel_no_flag()
+{
 	draw_channel_no_flag = 0;
 }
 
-static void clr_time_flag() {
+static void clr_time_flag()
+{
 	draw_time_flag = 0;
 }
