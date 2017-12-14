@@ -24,6 +24,7 @@ static void decode_keypress(uint16_t keycode)
                 stb_state.current_channel = MIN_CHANNEL;
             }
 			play_channel(stb_state.current_channel);
+			graphic_draw_channel_no(stb_state.current_channel);
             break;
         case KEYCODE_P_MINUS:
             if (--stb_state.current_channel < MIN_CHANNEL)

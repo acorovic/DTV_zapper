@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include "common.h"
 #include <signal.h>
+#include "timer.h"
+
 /* helper macro for error checking */
 #define DFBCHECK(x...)                                      \
 {                                                           \

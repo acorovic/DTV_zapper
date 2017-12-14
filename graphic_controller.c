@@ -18,49 +18,21 @@ static int8_t draw_time_flag;
 static char channel_no_str[5];
 static char time_str[5];
 
-static timer_t timer_time;
-static timer_t timer_channel;
-static int32_t timer_flags;
-static struct itimerspec timerSpec;
-static struct itimerspec timerSpecOld;
+static custom_timer_t timer_time;
+static custom_timer_t timer_channel;
 
-static struct sigevent time_event;
-static struct sigevent channel_no_event;
-
-static void draw_channel_no_fcn() {
-	DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
-	DFBCHECK(primary->FillRectangle(primary, 0, 0, CHANNEL_BANNER_WIDTH, CHANNEL_BANNER_HEIGHT));
-
-	DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0xff, 0xff));
-	DFBCHECK(primary->FillRectangle(primary, 10, 10, CHANNEL_BANNER_WIDTH - 20,
-													 CHANNEL_BANNER_HEIGHT - 20));
-	DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
-	DFBCHECK(primary->DrawString(primary, channel_no_str, -1, CHANNEL_BANNER_WIDTH/2,
-								CHANNEL_BANNER_HEIGHT/2, DSTF_LEFT));
-}
-
-static void draw_time_fcn() {
-	DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
-	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2,
-									 screen_height - TIME_BANNER_HEIGHT,
-									 TIME_BANNER_WIDTH,
-									 TIME_BANNER_HEIGHT));
-
-	DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0xff, 0xff));
-	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2 + 10,
-									 screen_height - TIME_BANNER_HEIGHT + 10,
-									TIME_BANNER_WIDTH - 20,
-									TIME_BANNER_HEIGHT - 20));
-	DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
-	DFBCHECK(primary->DrawString(primary, time_str, -1, screen_width/2 - 100,
-								screen_height - TIME_BANNER_HEIGHT/2, DSTF_LEFT));
-}
+/* Function which work with DFB */
+static void draw_channel_no_fcn();
+static void draw_time_fcn();
+/* Callback which clear flags after timers expired */
+static void clr_channel_no_flag();
+static void clr_time_flag();
 
 static void* render_fcn() {
 	while(render_running) {
 		/* Clear graphic */
-		DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0x00));
-		DFBCHECK(primary->FillRectangle(primary, 0, 0, CHANNEL_BANNER_WIDTH, CHANNEL_BANNER_HEIGHT));
+		DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0x00, 0x00));
+		DFBCHECK(primary->FillRectangle(primary, 0, 0, screen_width, screen_height));
 		/* Check channel no flag */
 		if(draw_channel_no_flag) {
 			draw_channel_no_fcn();
@@ -76,33 +48,16 @@ static void* render_fcn() {
 }
 
 int8_t graphic_draw_channel_no(uint8_t channel_no) {
-	memset(&timerSpec, 0, sizeof(timerSpec));
-	timerSpec.it_value.tv_sec = 3;
-	timerSpec.it_value.tv_nsec = 0;
 	sprintf(channel_no_str, "%d", channel_no);	
-
-	timer_settime(timer_channel, timer_flags, &timerSpec, &timerSpecOld);
+	custom_timer_start(&timer_channel, 3);
 
 	draw_channel_no_flag = 1;
 }
 
 int8_t graphic_draw_time(tdt_time_t time) {
-	memset(&timerSpec, 0, sizeof(timerSpec));
-	timerSpec.it_value.tv_sec = 3;
-	timerSpec.it_value.tv_nsec = 0;
-	timer_settime(timer_time, timer_flags, &timerSpec, &timerSpecOld);
 	sprintf(time_str, "%x:%x", time.hour, time.minute);	
+	custom_timer_start(&timer_time, 3);
 	draw_time_flag = 1;
-}
-
-static void clr_channel_no_flag() {
-	draw_channel_no_flag = 0;
-}
-
-static void clr_time_flag() {
-	printf("upao !!!!!!!!!!!!!\n");
-
-	draw_time_flag = 0;
 }
 
 int8_t graphic_init() {
@@ -135,18 +90,9 @@ int8_t graphic_init() {
 
 	DFBCHECK(dfbInterface->CreateFont(dfbInterface, font_path, &fontDesc, &fontInterface));
 	DFBCHECK(primary->SetFont(primary, fontInterface));
-	
-	channel_no_event.sigev_notify = SIGEV_THREAD;
-	channel_no_event.sigev_notify_function = (void*)clr_channel_no_flag;
-	channel_no_event.sigev_value.sival_ptr = NULL;
-	channel_no_event.sigev_notify_attributes = NULL;
-	timer_create(CLOCK_REALTIME, &channel_no_event, &timer_channel);
 
-	time_event.sigev_notify = SIGEV_THREAD;
-	time_event.sigev_notify_function = (void*)clr_time_flag;
-	time_event.sigev_value.sival_ptr = NULL;
-	time_event.sigev_notify_attributes = NULL;
-	timer_create(CLOCK_REALTIME, &channel_no_event, &timer_time);
+	custom_timer_create(&timer_channel, clr_channel_no_flag);
+	custom_timer_create(&timer_time, clr_time_flag);
 
 	render_running = 1;
 	if (pthread_create(&render_thread, NULL, &render_fcn, NULL))
@@ -171,5 +117,45 @@ int8_t graphic_deinit() {
 	primary->Release(primary);
 	dfbInterface->Release(dfbInterface);
 
+	custom_timer_delete(&timer_time);
+	custom_timer_delete(&timer_channel);
+
 	return NO_ERR;
+}
+
+static void draw_channel_no_fcn() {
+	DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
+	DFBCHECK(primary->FillRectangle(primary, 0, 0, CHANNEL_BANNER_WIDTH, CHANNEL_BANNER_HEIGHT));
+
+	DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0xff, 0xff));
+	DFBCHECK(primary->FillRectangle(primary, 10, 10, CHANNEL_BANNER_WIDTH - 20,
+													 CHANNEL_BANNER_HEIGHT - 20));
+	DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
+	DFBCHECK(primary->DrawString(primary, channel_no_str, -1, CHANNEL_BANNER_WIDTH/2,
+								CHANNEL_BANNER_HEIGHT/2, DSTF_LEFT));
+}
+
+static void draw_time_fcn() {
+	DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
+	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2,
+									 screen_height - TIME_BANNER_HEIGHT,
+									 TIME_BANNER_WIDTH,
+									 TIME_BANNER_HEIGHT));
+
+	DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0xff, 0xff));
+	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2 + 10,
+									 screen_height - TIME_BANNER_HEIGHT + 10,
+									TIME_BANNER_WIDTH - 20,
+									TIME_BANNER_HEIGHT - 20));
+	DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
+	DFBCHECK(primary->DrawString(primary, time_str, -1, screen_width/2 - 100,
+								screen_height - TIME_BANNER_HEIGHT/2, DSTF_LEFT));
+}
+
+static void clr_channel_no_flag() {
+	draw_channel_no_flag = 0;
+}
+
+static void clr_time_flag() {
+	draw_time_flag = 0;
 }
