@@ -55,5 +55,6 @@ int8_t player_set_volume(uint8_t vol_level);
 int8_t filter_pat();
 int8_t filter_pmt(uint16_t channel_pid);
 int8_t filter_tdt();
+int8_t filter_tot();
 
 #endif

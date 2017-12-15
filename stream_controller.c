@@ -5,6 +5,7 @@ static pthread_cond_t condition = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t condition_pat = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t condition_pmt = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t condition_tdt = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t condition_tot = PTHREAD_COND_INITIALIZER;
 
 static uint32_t player_handle;
 static uint32_t source_handle;
@@ -19,6 +20,9 @@ static int8_t time_read_success = 0;
 static service_t service_info_array[10];
 static pmt_t pmt_info;
 static tdt_time_t tdt_time;
+
+/* Helper function to change time according to TOT table offsets */
+static int8_t set_timezone(tdt_time_t* utc_time, uint8_t polarity, uint8_t hour_offset, uint8_t minute_offset);
 
 static int32_t pat_filter_callback(uint8_t* buffer)
 {
@@ -147,17 +151,84 @@ static int32_t tdt_filter_callback(uint8_t* buffer)
 		  (*(buffer+5) << 16) + (*(buffer+6) << 8) + ((*buffer+7)));
 
 	printf("MJD: %d, UTC %d \n");
+/*
+	tdt_time.minute = (int8_t) ((UTC & 0xff00) >> 8);
+	tdt_time.hour = (int8_t) ((UTC & 0xff0000) >> 16);
+*/
 
-	tdt_time.minute = (uint8_t) ((UTC & 0xff00) >> 8);
-	tdt_time.hour = (uint8_t) ((UTC & 0xff0000) >> 16);
+	tdt_time.minute = (int8_t) (((UTC & 0xf000) >> 12)*10 + ((UTC & 0xf00) >> 8));
+	tdt_time.hour = (int8_t) (((UTC & 0xf00000) >> 20)*10 + ((UTC & 0xf0000) >> 16));
 
-	printf("minute: %d\n", tdt_time.minute);
+
+	printf("hour: %d minute: %d\n",tdt_time.hour, tdt_time.minute);
 
 	time_read_success = 1;
 	pthread_mutex_lock(&mutex);
 	pthread_cond_signal(&condition_tdt);
 	pthread_mutex_unlock(&mutex);
 	printf("TDT table parsed \n");
+
+	return NO_ERR;
+}
+
+static int32_t tot_filter_callback(uint8_t* buffer)
+{
+	uint16_t descriptor_loop_len = 0;
+	uint8_t* desc_ptr;
+	uint8_t desc_len = 0;
+	uint8_t time_offset_polarity = 0;
+	uint16_t time_offset;
+	uint8_t country_region_id = 0;
+	uint8_t hour_offset = 0;
+	uint8_t minute_offset = 0;
+
+	printf("TOT arrived \n");
+
+	descriptor_loop_len = (uint16_t) (
+						  (*(buffer+8) << 8) + (*(buffer+9))	
+						  & 0x0fff);
+
+	printf("descriptor loop len %d\n", descriptor_loop_len);
+
+	desc_ptr = (buffer+10);
+
+	while (descriptor_loop_len > 0)
+	{
+		desc_len = *(desc_ptr+1);
+	
+		if (*(desc_ptr) == TOT_DESC)
+		{
+			printf("Found local time offset desc \n");
+			time_offset_polarity = (uint8_t) (
+								   (*(desc_ptr+5)) & 0x01);
+			printf("Time offset polarity %d \n", time_offset_polarity);
+					
+			time_offset = (uint16_t) (
+						  (*(desc_ptr+6) << 8) + (*(desc_ptr+7)));
+		   	printf("Time offset %x \n", time_offset);
+
+			hour_offset = time_offset >> 8;
+			minute_offset = time_offset & 0x00ff;
+			printf("Hour offset %d, minute offset %d \n", hour_offset, minute_offset);
+
+			country_region_id = (uint8_t) (
+								(*(desc_ptr+5) >> 2));
+			printf("Country region id %d \n", country_region_id);
+
+			set_timezone(&tdt_time, time_offset_polarity, hour_offset, minute_offset);
+
+			break;
+		}
+
+		printf("Not found local time offster desc \n");	
+		desc_ptr += desc_len;
+		descriptor_loop_len -= desc_len;
+	}
+
+	pthread_mutex_lock(&mutex);
+	pthread_cond_signal(&condition_tot);
+	pthread_mutex_unlock(&mutex);
+	printf("TOT table parsed \n");
 
 	return NO_ERR;
 }
@@ -219,7 +290,9 @@ tdt_time_t player_get_time() {
 	tdt_time_t ret_val = {99, 99};
 
 	time_read_success = 0;
+	
 	filter_tdt();
+	filter_tot();
 
 	if (time_read_success)
     {
@@ -413,7 +486,7 @@ int8_t filter_tdt()
 	t_Error status;
 
     status = demux_init(TDT_PID, TDT_TABLEID, tdt_filter_callback);
-	ASSERT_TDP_RESULT(status, "set tdt demux");
+	ASSERT_TDP_RESULT(status, "set TDT demux");
 
     gettimeofday(&now, NULL);
 	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME;
@@ -429,8 +502,71 @@ int8_t filter_tdt()
     pthread_mutex_unlock(&mutex);
 
     status = demux_deinit(tdt_filter_callback);
-    ASSERT_TDP_RESULT(status, "tdt filter callback free demux");
+    ASSERT_TDP_RESULT(status, "TDT filter callback free demux");
     printf("TDT parsed \n");
 
     return NO_ERROR;
+}
+
+int8_t filter_tot()
+{
+    int8_t rt;
+    struct timeval now;
+	struct timespec time_to_wait;
+	t_Error status;
+
+    status = demux_init(TOT_PID, TOT_TABLEID, tot_filter_callback);
+	ASSERT_TDP_RESULT(status, "set TOT demux");
+
+    gettimeofday(&now, NULL);
+	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME;
+	time_to_wait.tv_nsec = now.tv_usec + LOCK_TIME;
+
+    pthread_mutex_lock(&mutex);
+    rt = pthread_cond_timedwait(&condition_tot, &mutex, &time_to_wait);
+    if (rt == ETIMEDOUT)
+    {
+        printf("Couldn't parse TOT!\n");
+	    return ERROR;
+    }
+    pthread_mutex_unlock(&mutex);
+
+    status = demux_deinit(tot_filter_callback);
+    ASSERT_TDP_RESULT(status, "TOT filter callback free demux");
+    printf("TOT parsed \n");
+
+    return NO_ERROR;
+}
+
+
+static int8_t set_timezone(tdt_time_t* utc_time, uint8_t polarity, uint8_t hour_offset, uint8_t minute_offset)
+{
+	if (polarity == 0)
+	{
+		printf("utc time %d hour offset %d total %d \n", utc_time->hour, hour_offset, utc_time->hour + hour_offset);
+		utc_time->hour += hour_offset;
+		if (utc_time->hour > 23)
+		{
+			utc_time->hour -= 24;
+		}
+
+		utc_time->minute += minute_offset;
+		if (utc_time->minute > 59)
+		{
+			utc_time->minute -= 60;
+		}
+				
+	} else if (polarity == 1)
+	{
+		if (utc_time->hour - hour_offset < 0)
+		{
+			utc_time->hour = 24 - ((int8_t)hour_offset - utc_time->hour);
+		}
+
+		if (utc_time->minute - minute_offset < 0)
+		{
+			utc_time->minute = 60 - ((int8_t)minute_offset - utc_time->minute);
+		}
+	
+	}
 }

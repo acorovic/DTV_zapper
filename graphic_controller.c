@@ -82,7 +82,7 @@ int8_t graphic_draw_channel_no(uint8_t channel_no)
 
 int8_t graphic_draw_time(tdt_time_t time)
 {
-	sprintf(time_str, "%x:%x", time.hour, time.minute);
+	sprintf(time_str, "%d:%d", time.hour, time.minute);
 	custom_timer_start(&timer_time, 3);
 	draw_time_flag = 1;
 }

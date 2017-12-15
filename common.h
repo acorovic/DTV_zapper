@@ -27,10 +27,13 @@
 #define PMT_TABLEID 2
 #define TDT_PID 	0x0014
 #define TDT_TABLEID 0x70
+#define TOT_PID		0x0014
+#define TOT_TABLEID	0x73
+#define TOT_DESC	0x58
 
 typedef struct time{
-	uint8_t hour;
-	uint8_t minute;
+	int8_t hour;
+	int8_t minute;
 } tdt_time_t;
 
 #endif /* COMMON_H */
