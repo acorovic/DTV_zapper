@@ -17,14 +17,20 @@ static pthread_t render_thread;
 static int8_t render_running;
 
 /* Flags checked by render loop */
-static int8_t draw_channel_no_flag;
+static int8_t draw_channel_info_flag;
 static int8_t draw_time_flag;
 static int8_t draw_volume_flag;
 
 /* Helper vars used for drawing */
 static char channel_no_str[5];
+static char channel_video_pid_str[30];
+static char channel_audio_pid_str[30];
+static int8_t channel_has_teletext;
+static char channel_teletext_y_str[] = "Teletext: AVAILABLE";
+static char channel_teletext_n_str[] = "Teletext: UNAVAILABLE";
+static int8_t channel_has_video;
 static char time_str[5];
-static uint8_t volume_level;
+static int8_t volume_level;
 
 /* Timers used to hide graphic elements */
 static custom_timer_t timer_time;
@@ -32,12 +38,12 @@ static custom_timer_t timer_channel;
 static custom_timer_t timer_volume;
 
 /* Function which work with DFB */
-static void draw_channel_no_fcn();
+static void draw_channel_info_fcn();
 static void draw_time_fcn();
 static void draw_volume_fcn();
 
 /* Callback which clear flags after timers expired */
-static void clr_channel_no_flag();
+static void clr_channel_info_flag();
 static void clr_time_flag();
 static void clr_volume_flag();
 
@@ -52,9 +58,9 @@ static void* render_fcn()
 		DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0x00, 0x00));
 		DFBCHECK(primary->FillRectangle(primary, 0, 0, screen_width, screen_height));
 		/* Check channel no flag */
-		if (draw_channel_no_flag)
+		if (draw_channel_info_flag)
         {
-			draw_channel_no_fcn();
+			draw_channel_info_fcn();
 		}
 
 		/* Check time flag */
@@ -73,11 +79,28 @@ static void* render_fcn()
 	}
 }
 
-int8_t graphic_draw_channel_no(uint8_t channel_no)
+int8_t graphic_draw_channel_info(channel_t channel)
 {
-	sprintf(channel_no_str, "%d", channel_no);
+	sprintf(channel_no_str, "%d", channel.channel_no);
+	sprintf(channel_audio_pid_str, "Channel audio PID:%d", channel.audio_pid);
+	if (channel.has_video)
+	{
+		channel_has_video = 1;
+		sprintf(channel_video_pid_str, "Channel video PID:%d", channel.video_pid);
+	} else
+	{
+		channel_has_video = 0;
+	}
+
+	if (channel.has_teletext)
+	{
+		channel_has_teletext = 1;
+	} else 
+	{
+		channel_has_teletext = 0;
+	}
 	custom_timer_start(&timer_channel, 3);
-	draw_channel_no_flag = 1;
+	draw_channel_info_flag = 1;
 }
 
 int8_t graphic_draw_time(tdt_time_t time)
@@ -87,9 +110,11 @@ int8_t graphic_draw_time(tdt_time_t time)
 	draw_time_flag = 1;
 }
 
-int8_t graphic_draw_volume_level(uint8_t vol_level) {
+int8_t graphic_draw_volume_level(int8_t vol_level) {
     volume_level = vol_level;
-    custom_timer_start(&timer_volume, 3);
+    
+	printf("Volume LEVEL %d \n", volume_level);
+	custom_timer_start(&timer_volume, 3);
     draw_volume_flag = 1;
 }
 
@@ -127,7 +152,7 @@ int8_t graphic_init()
 
     load_volume_images();
 
-	custom_timer_create(&timer_channel, clr_channel_no_flag);
+	custom_timer_create(&timer_channel, clr_channel_info_flag);
 	custom_timer_create(&timer_time, clr_time_flag);
     custom_timer_create(&timer_volume, clr_volume_flag);
 
@@ -144,6 +169,8 @@ int8_t graphic_init()
 
 int8_t graphic_deinit()
 {
+	int8_t i;
+
 	render_running = 0;
 
 	if (pthread_join(render_thread, NULL))
@@ -161,7 +188,7 @@ int8_t graphic_deinit()
 	return NO_ERR;
 }
 
-static void draw_channel_no_fcn()
+static void draw_channel_info_fcn()
 {
 	DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
 	DFBCHECK(primary->FillRectangle(primary, 0, 0, CHANNEL_BANNER_WIDTH, CHANNEL_BANNER_HEIGHT));
@@ -169,9 +196,34 @@ static void draw_channel_no_fcn()
 	DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0xff, 0xff));
 	DFBCHECK(primary->FillRectangle(primary, 10, 10, CHANNEL_BANNER_WIDTH - 20,
 													 CHANNEL_BANNER_HEIGHT - 20));
+	/* Write channel no */
 	DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
-	DFBCHECK(primary->DrawString(primary, channel_no_str, -1, CHANNEL_BANNER_WIDTH/2,
-								CHANNEL_BANNER_HEIGHT/2, DSTF_LEFT));
+	DFBCHECK(primary->DrawString(primary, channel_no_str, -1, CHANNEL_INFO_TEXT_W,
+								CHANNEL_INFO_TEXT_H, DSTF_LEFT));
+	/* Write teletext message */
+	if (channel_has_teletext)
+	{
+		DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
+		DFBCHECK(primary->DrawString(primary, channel_teletext_y_str, -1, CHANNEL_INFO_TEXT_W,
+								CHANNEL_INFO_TEXT_H + 40, DSTF_LEFT));
+	} else 
+	{
+		DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
+		DFBCHECK(primary->DrawString(primary, channel_teletext_n_str, -1, CHANNEL_INFO_TEXT_W,
+								CHANNEL_INFO_TEXT_H + 40, DSTF_LEFT));
+	}
+	/* Write audio PID */
+	DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
+	DFBCHECK(primary->DrawString(primary, channel_audio_pid_str, -1, CHANNEL_INFO_TEXT_W,
+								CHANNEL_INFO_TEXT_H + 80, DSTF_LEFT));
+
+	/* Write video PID */
+	if (channel_has_video)
+	{
+		DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
+		DFBCHECK(primary->DrawString(primary, channel_video_pid_str, -1, CHANNEL_INFO_TEXT_W,
+								CHANNEL_INFO_TEXT_H + 120, DSTF_LEFT));
+	}
 }
 
 static void draw_time_fcn()
@@ -220,9 +272,9 @@ static int8_t load_volume_images()
     return NO_ERR;
 }
 
-static void clr_channel_no_flag()
+static void clr_channel_info_flag()
 {
-	draw_channel_no_flag = 0;
+	draw_channel_info_flag = 0;
 }
 
 static void clr_time_flag()

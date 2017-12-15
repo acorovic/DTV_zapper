@@ -30,6 +30,14 @@ static inline void textColor(int32_t attr, int32_t fg, int32_t bg)
                                     return -1; \
                                 }
 
+typedef struct channel_info {
+    int8_t channel_no;
+    int32_t video_pid;
+    int32_t audio_pid;
+    int8_t has_teletext;
+	int8_t has_video;
+} channel_t;
+
 typedef struct service {
     uint16_t program_no;
     uint16_t pid;
@@ -39,6 +47,7 @@ typedef struct pmt {
 	uint16_t has_video;
 	uint16_t video_pid;
 	uint16_t audio_pid[4];
+	uint16_t has_teletext;
 } pmt_t;
 
 int8_t tuner_init(uint32_t frequency);
@@ -47,7 +56,7 @@ int8_t tuner_deinit();
 int8_t demux_init(uint32_t PID, uint32_t tableID, int32_t(*demux_filter_callback)(uint8_t* buffer));
 int8_t demux_deinit(int32_t(*demux_filter_callback)(uint8_t* buffer));
 
-int8_t player_play_channel(int8_t channel_no);
+int8_t player_play_channel(channel_t* channel);
 tdt_time_t player_get_time();
 int8_t player_stop_channel();
 int8_t player_set_volume(uint8_t vol_level);

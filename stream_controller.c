@@ -112,17 +112,24 @@ static int32_t pmt_filter_callback(uint8_t* buffer)
                           (*(program_section_ptr + 3) << 8) + (*(program_section_ptr + 4))
                          & 0x0fff);
         printf("Stream type %d, elementary PID %d, es_info %d\n", stream_type, elementary_PID, ES_info_length);
-        if (stream_type == 2)
+        /* Video */
+		if (stream_type == 2)
         {
             pmt_info.video_pid = elementary_PID;
         	pmt_info.has_video = 1;
+		/* Audio */
 		} else if (stream_type == 3)
         {
             pmt_info.audio_pid[0] = elementary_PID;
-        } else if (stream_type == 4)
+        /* Audio */
+		} else if (stream_type == 4)
         {
             pmt_info.audio_pid[1] = elementary_PID;
-        }
+        /* Teletext */
+		} else if (stream_type == 6)
+		{
+			pmt_info.has_teletext = 1;
+		}
         n -= (5 + ES_info_length);
         if (n > 0)
         {
@@ -249,7 +256,7 @@ static int32_t tuner_callback(t_LockStatus status)
 	return 0;
 }
 
-int8_t player_play_channel(int8_t channel_no)
+int8_t player_play_channel(channel_t* channel)
 {
 	t_Error status;
 	service_t channel_info;
@@ -258,14 +265,16 @@ int8_t player_play_channel(int8_t channel_no)
 	if (audio_running == 1)
     {
 		Player_Stream_Remove(player_handle, source_handle, audio_handle);
+		audio_running = 0;
 	}
 
 	if (video_running == 1)
     {
 		Player_Stream_Remove(player_handle, source_handle, video_handle);
+		video_running = 0;
 	}
 
-	channel_info = service_info_array[channel_no];
+	channel_info = service_info_array[channel->channel_no];
 	filter_pmt(channel_info.pid);
 	channel_pmt = pmt_info;
 
@@ -275,12 +284,25 @@ int8_t player_play_channel(int8_t channel_no)
 									channel_pmt.video_pid, VIDEO_TYPE_MPEG2,
 									&video_handle);
 		ASSERT_TDP_RESULT(status, "video stream");
+		channel->video_pid = channel_pmt.video_pid;
+		channel->has_video = 1;
 		video_running = 1;
+	} else 
+	{
+		channel->has_video = 0;
 	}
+
 	status = Player_Stream_Create(player_handle, source_handle,
 								channel_pmt.audio_pid[0], AUDIO_TYPE_MPEG_AUDIO,
 								&audio_handle);
 	ASSERT_TDP_RESULT(status, "audio stream");
+	channel->audio_pid = channel_pmt.audio_pid[0];
+
+	if (channel_pmt.has_teletext)
+	{
+		channel->has_teletext = 1;
+	}
+
 	audio_running = 1;
 
 	return NO_ERROR;
@@ -331,6 +353,7 @@ int8_t tuner_init(uint32_t frequency)
 
 	pmt_info.has_video = 0;
 	pmt_info.video_pid = 0;
+	pmt_info.has_teletext = 0;
 	for (i = 0; i < 4; i++)
 	{
 		pmt_info.audio_pid[i] = 0;
