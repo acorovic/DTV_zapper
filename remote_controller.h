@@ -14,6 +14,8 @@
 #define NUM_EVENTS 5
 #define MAX_CHANNEL 10
 #define MIN_CHANNEL 0
+#define MIN_VOL_LEVEL 0
+#define MAX_VOL_LEVEL 10
 
 int8_t remote_init();
 

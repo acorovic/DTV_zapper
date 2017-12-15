@@ -5,30 +5,44 @@ static IDirectFB *dfbInterface = NULL;
 static DFBSurfaceDescription surfaceDesc;
 static IDirectFBFont *fontInterface = NULL;
 static DFBFontDescription fontDesc;
+static IDirectFBImageProvider* volume_image_provider[VOLUME_IMAGE_NO];
+static IDirectFBSurface* volume_image_surface[VOLUME_IMAGE_NO];
+
 static char font_path[] = "/home/galois/fonts/DejaVuSans.ttf";
+static char image_folder[] = "./images/";
 static int32_t screen_width;
 static int32_t screen_height;
 
 static pthread_t render_thread;
 static int8_t render_running;
 
+/* Flags checked by render loop */
 static int8_t draw_channel_no_flag;
 static int8_t draw_time_flag;
+static int8_t draw_volume_flag;
 
+/* Helper vars used for drawing */
 static char channel_no_str[5];
 static char time_str[5];
+static uint8_t volume_level;
 
 /* Timers used to hide graphic elements */
 static custom_timer_t timer_time;
 static custom_timer_t timer_channel;
+static custom_timer_t timer_volume;
 
 /* Function which work with DFB */
 static void draw_channel_no_fcn();
 static void draw_time_fcn();
+static void draw_volume_fcn();
 
 /* Callback which clear flags after timers expired */
 static void clr_channel_no_flag();
 static void clr_time_flag();
+static void clr_volume_flag();
+
+/* Helper functions */
+static int8_t load_volume_images();
 
 static void* render_fcn()
 {
@@ -49,6 +63,12 @@ static void* render_fcn()
 			draw_time_fcn();
 		}
 
+        /* Check volume flag */
+        if (draw_volume_flag)
+        {
+            draw_volume_fcn();
+        }
+
 		DFBCHECK(primary->Flip(primary, NULL, 0));
 	}
 }
@@ -65,6 +85,12 @@ int8_t graphic_draw_time(tdt_time_t time)
 	sprintf(time_str, "%x:%x", time.hour, time.minute);
 	custom_timer_start(&timer_time, 3);
 	draw_time_flag = 1;
+}
+
+int8_t graphic_draw_volume_level(uint8_t vol_level) {
+    volume_level = vol_level;
+    custom_timer_start(&timer_volume, 3);
+    draw_volume_flag = 1;
 }
 
 int8_t graphic_init()
@@ -99,8 +125,11 @@ int8_t graphic_init()
 	DFBCHECK(dfbInterface->CreateFont(dfbInterface, font_path, &fontDesc, &fontInterface));
 	DFBCHECK(primary->SetFont(primary, fontInterface));
 
+    load_volume_images();
+
 	custom_timer_create(&timer_channel, clr_channel_no_flag);
 	custom_timer_create(&timer_time, clr_time_flag);
+    custom_timer_create(&timer_volume, clr_volume_flag);
 
 	render_running = 1;
 	if (pthread_create(&render_thread, NULL, &render_fcn, NULL))
@@ -163,6 +192,34 @@ static void draw_time_fcn()
 								screen_height - TIME_BANNER_HEIGHT/2, DSTF_LEFT));
 }
 
+static void draw_volume_fcn()
+{
+    DFBCHECK(primary->Blit(primary, volume_image_surface[volume_level], NULL, 50, screen_height-250));
+}
+
+static int8_t load_volume_images()
+{
+    int8_t i;
+    char image_path[30];
+    char sprintf_conversion[30];
+
+    strcpy(sprintf_conversion, image_folder);
+    strcat(sprintf_conversion, "image_%0d.jpg");
+
+    for (i = 0; i < VOLUME_IMAGE_NO; i++)
+    {
+        sprintf(image_path, sprintf_conversion, i);
+        printf("image path: %s\n", image_path);
+        DFBCHECK(dfbInterface->CreateImageProvider(dfbInterface, image_path, &(volume_image_provider[i])));
+        DFBCHECK(volume_image_provider[i]->GetSurfaceDescription(volume_image_provider[i], &surfaceDesc));
+        DFBCHECK(dfbInterface->CreateSurface(dfbInterface, &surfaceDesc, &(volume_image_surface[i])));
+        DFBCHECK(volume_image_provider[i]->RenderTo(volume_image_provider[i], volume_image_surface[i], NULL));
+        volume_image_provider[i]->Release(volume_image_provider[i]);
+    }
+
+    return NO_ERR;
+}
+
 static void clr_channel_no_flag()
 {
 	draw_channel_no_flag = 0;
@@ -171,4 +228,9 @@ static void clr_channel_no_flag()
 static void clr_time_flag()
 {
 	draw_time_flag = 0;
+}
+
+static void clr_volume_flag()
+{
+    draw_volume_flag = 0;
 }

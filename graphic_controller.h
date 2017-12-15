@@ -7,8 +7,9 @@
 #include <time.h>
 #include <pthread.h>
 #include <stdint.h>
-#include "common.h"
 #include <signal.h>
+#include <string.h>
+#include "common.h"
 #include "timer.h"
 
 /* helper macro for error checking */
@@ -28,12 +29,14 @@ if (err != DFB_OK)                                          \
 #define TIME_BANNER_WIDTH 		500
 #define TIME_BANNER_HEIGHT 		100
 #define FONT_HEIGHT 			40
-
+#define VOLUME_IMAGE_NO         5
 
 int8_t graphic_init();
 int8_t graphic_deinit();
 
 int8_t graphic_draw_channel_no(uint8_t channel_no);
 int8_t graphic_draw_time(tdt_time_t time);
+int8_t graphic_draw_volume_level(uint8_t volume_level);
+int8_t graphic_draw_volume_mute();
 
 #endif

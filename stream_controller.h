@@ -9,8 +9,8 @@
 #include <errno.h>
 #include "common.h"
 #include "tdp_api.h"
+
 #define LOCK_TIME 10
-#define NUM_EVENTS 5
 
 static inline void textColor(int32_t attr, int32_t fg, int32_t bg)
 {

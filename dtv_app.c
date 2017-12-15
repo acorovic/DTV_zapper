@@ -1,12 +1,13 @@
 #include "remote_controller.h"
 #include "graphic_controller.h"
 #include "stream_controller.h"
+
 /* Struct used to repesent app state */
 struct app_state
 {
     int8_t app_running;
     int8_t current_channel;
-    int8_t volume_level;
+    uint8_t volume_level;
 };
 
 static struct app_state stb_state;
@@ -35,6 +36,27 @@ static void decode_keypress(uint16_t keycode)
             }
 			play_channel(stb_state.current_channel);
 			graphic_draw_channel_no(stb_state.current_channel);
+            break;
+        case KEYCODE_VOL_PLUS:
+            if (++stb_state.volume_level > MAX_VOL_LEVEL)
+            {
+                stb_state.volume_level = MAX_VOL_LEVEL;
+            }
+            /* Add setting volume to player */
+            graphic_draw_volume_level(stb_state.volume_level);
+            break;
+        case KEYCODE_VOL_MINUS:
+            if (--stb_state.volume_level < MIN_VOL_LEVEL)
+            {
+                stb_state.volume_level = MIN_VOL_LEVEL;
+            }
+            /* Add setting volume to player */
+            graphic_draw_volume_level(stb_state.volume_level);
+            break;
+        case KEYCODE_VOL_MUTE:
+            stb_state.volume_level = MIN_VOL_LEVEL;
+            /* Add setting volume to player */
+            graphic_draw_volume_level(stb_state.volume_level);
             break;
         case KEYCODE_EXIT:
             stb_state.app_running = 0;
