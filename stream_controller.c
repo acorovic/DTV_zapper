@@ -178,7 +178,7 @@ static int32_t tuner_callback(t_LockStatus status)
 	return 0;
 }
 
-int8_t play_channel(int8_t channel_no)
+int8_t player_play_channel(int8_t channel_no)
 {
 	t_Error status;
 	service_t channel_info;
@@ -215,7 +215,7 @@ int8_t play_channel(int8_t channel_no)
 	return NO_ERROR;
 }
 
-tdt_time_t get_time() {
+tdt_time_t player_get_time() {
 	tdt_time_t ret_val = {99, 99};
 
 	time_read_success = 0;
@@ -226,6 +226,19 @@ tdt_time_t get_time() {
 		ret_val = tdt_time;
 	}
 	return ret_val;
+}
+
+int8_t player_set_volume(uint8_t vol_level)
+{
+	t_Error status;
+	
+	if (audio_running) 
+	{
+		status = Player_Volume_Set(player_handle, vol_level * 160400000);
+		ASSERT_TDP_RESULT(status, "set volume");
+	}
+
+	return NO_ERR;
 }
 
 int8_t tuner_init(uint32_t frequency)

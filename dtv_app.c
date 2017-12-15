@@ -19,14 +19,14 @@ static void decode_keypress(uint16_t keycode)
     {
         case KEYCODE_INFO:
             printf("Currently on channel %d\n", stb_state.current_channel);
-			graphic_draw_time(get_time());
+			graphic_draw_time(player_get_time());
             break;
         case KEYCODE_P_PLUS:
             if (++stb_state.current_channel > MAX_CHANNEL)
             {
                 stb_state.current_channel = MIN_CHANNEL;
             }
-			play_channel(stb_state.current_channel);
+			player_play_channel(stb_state.current_channel);
 			graphic_draw_channel_no(stb_state.current_channel);
             break;
         case KEYCODE_P_MINUS:
@@ -34,7 +34,7 @@ static void decode_keypress(uint16_t keycode)
             {
                 stb_state.current_channel = MAX_CHANNEL;
             }
-			play_channel(stb_state.current_channel);
+			player_play_channel(stb_state.current_channel);
 			graphic_draw_channel_no(stb_state.current_channel);
             break;
         case KEYCODE_VOL_PLUS:
@@ -42,22 +42,22 @@ static void decode_keypress(uint16_t keycode)
             {
                 stb_state.volume_level = MAX_VOL_LEVEL;
             }
-            /* Add setting volume to player */
             graphic_draw_volume_level(stb_state.volume_level);
-            break;
+            player_set_volume(stb_state.volume_level);
+			break;
         case KEYCODE_VOL_MINUS:
             if (--stb_state.volume_level < MIN_VOL_LEVEL)
             {
                 stb_state.volume_level = MIN_VOL_LEVEL;
             }
-            /* Add setting volume to player */
             graphic_draw_volume_level(stb_state.volume_level);
-            break;
+            player_set_volume(stb_state.volume_level);
+			break;
         case KEYCODE_VOL_MUTE:
             stb_state.volume_level = MIN_VOL_LEVEL;
-            /* Add setting volume to player */
             graphic_draw_volume_level(stb_state.volume_level);
-            break;
+            player_set_volume(stb_state.volume_level);
+			break;
         case KEYCODE_EXIT:
             stb_state.app_running = 0;
             break;
@@ -72,6 +72,7 @@ int32_t main()
 
     stb_state.app_running = 1;
     stb_state.current_channel = MIN_CHANNEL;
+	stb_state.volume_level = 5;
 
 	status = tuner_init(754000000);
     if (status == ERR)
@@ -84,7 +85,8 @@ int32_t main()
 	status = graphic_init();
 	filter_pat();
 
-	play_channel(0);
+	player_play_channel(0);
+	player_set_volume(stb_state.volume_level);
 	graphic_draw_channel_no(0);
 	while (stb_state.app_running) {
         

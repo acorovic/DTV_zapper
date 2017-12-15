@@ -12,9 +12,9 @@
 #define KEYCODE_EXIT 		102
 #define KEYCODE_INFO 		358
 /* Check codes !!!!!!!!!!! */
-#define KEYCODE_VOL_PLUS    77
-#define KEYCODE_VOL_MINUS   78
-#define KEYCODE_VOL_MUTE    79
+#define KEYCODE_VOL_PLUS    63
+#define KEYCODE_VOL_MINUS   64
+#define KEYCODE_VOL_MUTE    60
 
 /* error codes */
 #define NO_ERR 		0

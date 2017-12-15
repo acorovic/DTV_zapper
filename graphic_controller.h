@@ -29,7 +29,7 @@ if (err != DFB_OK)                                          \
 #define TIME_BANNER_WIDTH 		500
 #define TIME_BANNER_HEIGHT 		100
 #define FONT_HEIGHT 			40
-#define VOLUME_IMAGE_NO         5
+#define VOLUME_IMAGE_NO        	11 
 
 int8_t graphic_init();
 int8_t graphic_deinit();

@@ -204,7 +204,7 @@ static int8_t load_volume_images()
     char sprintf_conversion[30];
 
     strcpy(sprintf_conversion, image_folder);
-    strcat(sprintf_conversion, "image_%0d.jpg");
+    strcat(sprintf_conversion, "volume_%0d.png");
 
     for (i = 0; i < VOLUME_IMAGE_NO; i++)
     {

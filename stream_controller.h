@@ -47,9 +47,10 @@ int8_t tuner_deinit();
 int8_t demux_init(uint32_t PID, uint32_t tableID, int32_t(*demux_filter_callback)(uint8_t* buffer));
 int8_t demux_deinit(int32_t(*demux_filter_callback)(uint8_t* buffer));
 
-int8_t play_channel(int8_t channel_no);
-tdt_time_t get_time();
-int8_t stop_channel();
+int8_t player_play_channel(int8_t channel_no);
+tdt_time_t player_get_time();
+int8_t player_stop_channel();
+int8_t player_set_volume(uint8_t vol_level);
 
 int8_t filter_pat();
 int8_t filter_pmt(uint16_t channel_pid);
