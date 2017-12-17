@@ -1,5 +1,6 @@
 #include "graphic_controller.h"
 
+/* Global variables used by DirectFb */
 static IDirectFBSurface *primary = NULL;
 static IDirectFB *dfbInterface = NULL;
 static DFBSurfaceDescription surfaceDesc;
@@ -7,19 +8,12 @@ static IDirectFBFont *fontInterface = NULL;
 static DFBFontDescription fontDesc;
 static IDirectFBImageProvider* volume_image_provider[VOLUME_IMAGE_NO];
 static IDirectFBSurface* volume_image_surface[VOLUME_IMAGE_NO];
-
-static char font_path[] = "/home/galois/fonts/DejaVuSans.ttf";
-static char image_folder[] = "./images/";
 static int32_t screen_width;
 static int32_t screen_height;
 
-static pthread_t render_thread;
-static int8_t render_running;
-
-/* Flags checked by render loop */
-static int8_t draw_channel_info_flag;
-static int8_t draw_time_flag;
-static int8_t draw_volume_flag;
+/* Paths to font and image folder */
+static char font_path[] = "/home/galois/fonts/DejaVuSans.ttf";
+static char image_folder[] = "./images/";
 
 /* Helper vars used for drawing */
 static char channel_no_str[5];
@@ -32,17 +26,26 @@ static int8_t channel_has_video;
 static char time_str[10];
 static int8_t volume_level;
 
+/* Render thread and flag to end thread */
+static pthread_t render_thread;
+static int8_t render_running;
+
+/* Flags checked by render loop */
+static int8_t draw_channel_info_flag;
+static int8_t draw_time_flag;
+static int8_t draw_volume_flag;
+
 /* Timers used to hide graphic elements */
 static custom_timer_t timer_time;
 static custom_timer_t timer_channel;
 static custom_timer_t timer_volume;
 
-/* Function which work with DFB */
+/* Helper functions which work with DFB, draw on surface */
 static void draw_channel_info_fcn();
 static void draw_time_fcn();
 static void draw_volume_fcn();
 
-/* Callback which clear flags after timers expired */
+/* Callbacks which clear flags after timers expired */
 static void clr_channel_info_flag();
 static void clr_time_flag();
 static void clr_volume_flag();
@@ -50,6 +53,122 @@ static void clr_volume_flag();
 /* Helper functions */
 static int8_t load_volume_images();
 static void format_time_str(tdt_time_t time, char* str);
+
+/* Function which executes in separate thread */
+static void* render_fcn();
+
+int8_t graphic_init()
+{
+    /* Initialize directFB */
+	DFBCHECK(DirectFBInit(NULL, NULL));
+	/* Fetch the directFB interface */
+	DFBCHECK(DirectFBCreate(&dfbInterface));
+	/* Tell the directFB to take the full screen for this application */
+	DFBCHECK(dfbInterface->SetCooperativeLevel(dfbInterface, DFSCL_FULLSCREEN));
+
+	/* Create primary surface with double buffering enabled */
+	surfaceDesc.flags = DSDESC_CAPS;
+	surfaceDesc.caps = DSCAPS_PRIMARY | DSCAPS_FLIPPING;
+	DFBCHECK(dfbInterface->CreateSurface(dfbInterface, &surfaceDesc, &primary));
+
+	/* Fetch the screen size */
+	DFBCHECK(primary->GetSize(primary, &screen_width, &screen_height));
+
+    /* Clear the screen before drawing anything (draw black full screen rect(alpha 0)) */
+	DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0x00, 0x00));
+	DFBCHECK(primary->FillRectangle(primary, 0, 0, screen_width, screen_height));
+	DFBCHECK(primary->Flip(primary, NULL, 0));
+
+	/* Specify the font height */
+	fontDesc.flags = DFDESC_HEIGHT;
+	fontDesc.height = FONT_HEIGHT;
+    /* Create font */
+	DFBCHECK(dfbInterface->CreateFont(dfbInterface, font_path, &fontDesc, &fontInterface));
+	DFBCHECK(primary->SetFont(primary, fontInterface));
+
+    if (load_volume_images() == ERR)
+    {
+        printf("Couldn't load volume_images \n");
+        primary->Release(primary);
+        dfbInterface->Release(dfbInterface);
+        return ERR;
+    }
+
+	custom_timer_create(&timer_channel, clr_channel_info_flag);
+	custom_timer_create(&timer_time, clr_time_flag);
+    custom_timer_create(&timer_volume, clr_volume_flag);
+
+	render_running = 1;
+	if (pthread_create(&render_thread, NULL, &render_fcn, NULL))
+    {
+        render_running = 0;
+        printf("Error creating thread for remote\n");
+        return ERR;
+    }
+    printf("Render thread created! \n");
+
+	return NO_ERR;
+}
+
+int8_t graphic_deinit()
+{
+	int8_t i;
+
+	render_running = 0;
+	if (pthread_join(render_thread, NULL))
+    {
+        printf("Error during render_thread join!\n");
+        return ERR;
+    }
+
+	primary->Release(primary);
+	dfbInterface->Release(dfbInterface);
+
+	custom_timer_delete(&timer_time);
+	custom_timer_delete(&timer_channel);
+
+	return NO_ERR;
+}
+
+void graphic_draw_channel_info(channel_t channel)
+{
+	sprintf(channel_no_str, "%d", channel.channel_no);
+	sprintf(channel_audio_pid_str, "Channel audio PID:%d", channel.audio_pid);
+	if (channel.has_video)
+	{
+		channel_has_video = 1;
+		sprintf(channel_video_pid_str, "Channel video PID:%d", channel.video_pid);
+	} else
+	{
+		channel_has_video = 0;
+	}
+
+	if (channel.has_teletext)
+	{
+		channel_has_teletext = 1;
+	} else
+	{
+		channel_has_teletext = 0;
+	}
+	custom_timer_start(&timer_channel, INFO_INTERVAL_S);
+	draw_channel_info_flag = 1;
+}
+
+void graphic_draw_time(tdt_time_t time)
+{
+	//sprintf(time_str, "%d:%d", time.hour, time.minute);
+	format_time_str(time, time_str);
+    custom_timer_start(&timer_time, 3);
+	draw_time_flag = 1;
+}
+
+void graphic_draw_volume_level(int8_t vol_level) {
+    volume_level = vol_level;
+
+	printf("Volume LEVEL %d \n", volume_level);
+	custom_timer_start(&timer_volume, 3);
+    draw_volume_flag = 1;
+}
 
 static void* render_fcn()
 {
@@ -80,119 +199,11 @@ static void* render_fcn()
 	}
 }
 
-int8_t graphic_draw_channel_info(channel_t channel)
-{
-	sprintf(channel_no_str, "%d", channel.channel_no);
-	sprintf(channel_audio_pid_str, "Channel audio PID:%d", channel.audio_pid);
-	if (channel.has_video)
-	{
-		channel_has_video = 1;
-		sprintf(channel_video_pid_str, "Channel video PID:%d", channel.video_pid);
-	} else
-	{
-		channel_has_video = 0;
-	}
-
-	if (channel.has_teletext)
-	{
-		channel_has_teletext = 1;
-	} else
-	{
-		channel_has_teletext = 0;
-	}
-	custom_timer_start(&timer_channel, 3);
-	draw_channel_info_flag = 1;
-}
-
-int8_t graphic_draw_time(tdt_time_t time)
-{
-	//sprintf(time_str, "%d:%d", time.hour, time.minute);
-	format_time_str(time, time_str);
-    custom_timer_start(&timer_time, 3);
-	draw_time_flag = 1;
-}
-
-int8_t graphic_draw_volume_level(int8_t vol_level) {
-    volume_level = vol_level;
-    
-	printf("Volume LEVEL %d \n", volume_level);
-	custom_timer_start(&timer_volume, 3);
-    draw_volume_flag = 1;
-}
-
-int8_t graphic_init()
-{
-	/* Initialize directFB */
-	DFBCHECK(DirectFBInit(NULL, NULL));
-	/* Fetch the directFB interface */
-	DFBCHECK(DirectFBCreate(&dfbInterface));
-	/* Tell the directFB to take the full screen for this application */
-	DFBCHECK(dfbInterface->SetCooperativeLevel(dfbInterface, DFSCL_FULLSCREEN));
-
-	/* Create primary surface with double buffering enabled */
-	surfaceDesc.flags = DSDESC_CAPS;
-	surfaceDesc.caps = DSCAPS_PRIMARY | DSCAPS_FLIPPING;
-	DFBCHECK(dfbInterface->CreateSurface(dfbInterface, &surfaceDesc, &primary));
-
-	/* Fetch the screen size */
-	DFBCHECK(primary->GetSize(primary, &screen_width, &screen_height));
-
-	printf("Screen width: %d \n", screen_width);
-	printf("Screen height %d \n", screen_height);
-
-	/* Clear the screen before drawing anything (draw black full screen rect(alpha 0)) */
-	DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0x00, 0x00));
-	DFBCHECK(primary->FillRectangle(primary, 0, 0, screen_width, screen_height));
-	DFBCHECK(primary->Flip(primary, NULL, 0));
-
-	/* Specify the font height */
-	fontDesc.flags = DFDESC_HEIGHT;
-	fontDesc.height = FONT_HEIGHT;
-
-	DFBCHECK(dfbInterface->CreateFont(dfbInterface, font_path, &fontDesc, &fontInterface));
-	DFBCHECK(primary->SetFont(primary, fontInterface));
-
-    load_volume_images();
-
-	custom_timer_create(&timer_channel, clr_channel_info_flag);
-	custom_timer_create(&timer_time, clr_time_flag);
-    custom_timer_create(&timer_volume, clr_volume_flag);
-
-	render_running = 1;
-	if (pthread_create(&render_thread, NULL, &render_fcn, NULL))
-    {
-        render_running = 0;
-        printf("Error creating thread for remote\n");
-        return ERR;
-    }
-
-	return NO_ERR;
-}
-
-int8_t graphic_deinit()
-{
-	int8_t i;
-
-	render_running = 0;
-
-	if (pthread_join(render_thread, NULL))
-    {
-        printf("Error during render_thread join!\n");
-        return ERR;
-    }
-
-	primary->Release(primary);
-	dfbInterface->Release(dfbInterface);
-
-	custom_timer_delete(&timer_time);
-	custom_timer_delete(&timer_channel);
-
-	return NO_ERR;
-}
 
 static void draw_channel_info_fcn()
 {
-	DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
+    /* Make banner background */
+    DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
 	DFBCHECK(primary->FillRectangle(primary, 0, 0, CHANNEL_BANNER_WIDTH, CHANNEL_BANNER_HEIGHT));
 
 	DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0xff, 0xff));
@@ -208,7 +219,7 @@ static void draw_channel_info_fcn()
 		DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
 		DFBCHECK(primary->DrawString(primary, channel_teletext_y_str, -1, CHANNEL_INFO_TEXT_W,
 								CHANNEL_INFO_TEXT_H + 40, DSTF_LEFT));
-	} else 
+	} else
 	{
 		DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
 		DFBCHECK(primary->DrawString(primary, channel_teletext_n_str, -1, CHANNEL_INFO_TEXT_W,
@@ -230,7 +241,8 @@ static void draw_channel_info_fcn()
 
 static void draw_time_fcn()
 {
-	DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
+	/* Make banner background */
+    DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
 	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2,
 									 screen_height - TIME_BANNER_HEIGHT,
 									 TIME_BANNER_WIDTH,
@@ -242,13 +254,31 @@ static void draw_time_fcn()
 									TIME_BANNER_WIDTH - 20,
 									TIME_BANNER_HEIGHT - 20));
 	DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
-	DFBCHECK(primary->DrawString(primary, time_str, -1, screen_width/2 - 100,
+	/* Write time */
+    DFBCHECK(primary->DrawString(primary, time_str, -1, screen_width/2 - 100,
 								screen_height - TIME_BANNER_HEIGHT/2, DSTF_LEFT));
 }
 
 static void draw_volume_fcn()
 {
+    /* Draw volume image */
     DFBCHECK(primary->Blit(primary, volume_image_surface[volume_level], NULL, 50, screen_height-250));
+}
+
+/* Callbacks called when timers expire to clear drawing flags */
+static void clr_channel_info_flag()
+{
+	draw_channel_info_flag = 0;
+}
+
+static void clr_time_flag()
+{
+	draw_time_flag = 0;
+}
+
+static void clr_volume_flag()
+{
+    draw_volume_flag = 0;
 }
 
 static int8_t load_volume_images()
@@ -274,27 +304,11 @@ static int8_t load_volume_images()
     return NO_ERR;
 }
 
-static void clr_channel_info_flag()
-{
-	draw_channel_info_flag = 0;
-}
-
-static void clr_time_flag()
-{
-	draw_time_flag = 0;
-}
-
-static void clr_volume_flag()
-{
-    draw_volume_flag = 0;
-}
-
-
 static void format_time_str(tdt_time_t time, char* str)
 {
     char hour_str[4];
     char minute_str[3];
-    // AM
+    /* AM */
     if (time.hour >= 0 && time.hour < 12)
     {
         strcpy(str, "AM ");
@@ -308,9 +322,9 @@ static void format_time_str(tdt_time_t time, char* str)
         }
         sprintf(hour_str, "%d:", time.hour);
         strcat(str, hour_str);
+    /* PM */
     } else
     {
-        // PM
         strcpy(str, "PM");
         if (time.hour > 12)
         {
@@ -324,7 +338,7 @@ static void format_time_str(tdt_time_t time, char* str)
         strcat(str, hour_str);
     }
 
-    // Add minutes to str
+    /* Add minutes to string which will be written by render thread */
     if (time.minute < 10)
     {
         sprintf(minute_str, "0%d", time.minute);
@@ -334,6 +348,5 @@ static void format_time_str(tdt_time_t time, char* str)
     }
 
     strcat(str, minute_str);
-
     printf("Time: %s", str);
 }
