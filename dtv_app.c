@@ -1,6 +1,7 @@
 #include "remote_controller.h"
 #include "graphic_controller.h"
 #include "stream_controller.h"
+#include "init_parser.h"
 
 /* Struct used to repesent app state */
 struct app_state

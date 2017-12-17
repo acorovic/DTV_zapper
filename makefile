@@ -40,7 +40,8 @@ SRCS =  ./dtv_app.c 		  	\
 		./remote_controller.c 	\
 		./stream_controller.c	\
 		./graphic_controller.c 	\
-		./timer.c	
+		./timer.c				\
+		./init_parser.c
 parser_playback_sample:
 	$(CC) -o zapper $(INCS) $(SRCS) $(CFLAGS) $(LIBS)
     
