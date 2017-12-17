@@ -29,7 +29,7 @@ static int8_t channel_has_teletext;
 static char channel_teletext_y_str[] = "Teletext: AVAILABLE";
 static char channel_teletext_n_str[] = "Teletext: UNAVAILABLE";
 static int8_t channel_has_video;
-static char time_str[5];
+static char time_str[10];
 static int8_t volume_level;
 
 /* Timers used to hide graphic elements */
@@ -49,6 +49,7 @@ static void clr_volume_flag();
 
 /* Helper functions */
 static int8_t load_volume_images();
+static void format_time_str(tdt_time_t time, char* str);
 
 static void* render_fcn()
 {
@@ -95,7 +96,7 @@ int8_t graphic_draw_channel_info(channel_t channel)
 	if (channel.has_teletext)
 	{
 		channel_has_teletext = 1;
-	} else 
+	} else
 	{
 		channel_has_teletext = 0;
 	}
@@ -105,8 +106,9 @@ int8_t graphic_draw_channel_info(channel_t channel)
 
 int8_t graphic_draw_time(tdt_time_t time)
 {
-	sprintf(time_str, "%d:%d", time.hour, time.minute);
-	custom_timer_start(&timer_time, 3);
+	//sprintf(time_str, "%d:%d", time.hour, time.minute);
+	format_time_str(time, time_str);
+    custom_timer_start(&timer_time, 3);
 	draw_time_flag = 1;
 }
 
@@ -285,4 +287,53 @@ static void clr_time_flag()
 static void clr_volume_flag()
 {
     draw_volume_flag = 0;
+}
+
+
+static void format_time_str(tdt_time_t time, char* str)
+{
+    char hour_str[4];
+    char minute_str[3];
+    // AM
+    if (time.hour >= 0 && time.hour < 12)
+    {
+        strcpy(str, "AM ");
+        if (time.hour == 0)
+        {
+            time.hour = 12;
+        }
+        if (time.hour < 10)
+        {
+            strcat(str, "0");
+        }
+        sprintf(hour_str, "%d:", time.hour);
+        strcat(str, hour_str);
+    } else
+    {
+        // PM
+        strcpy(str, "PM");
+        if (time.hour > 12)
+        {
+         time.hour -= 12;
+        }
+        if (time.hour < 10)
+        {
+            strcat(str, "0");
+        }
+        sprintf(hour_str, "%d:", time.hour);
+        strcat(str, hour_str);
+    }
+
+    // Add minutes to str
+    if (time.minute < 10)
+    {
+        sprintf(minute_str, "0%d", time.minute);
+    } else
+    {
+        sprintf(minute_str, "%d", time.minute);
+    }
+
+    strcat(str, minute_str);
+
+    printf("Time: %s", str);
 }

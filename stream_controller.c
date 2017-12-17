@@ -209,7 +209,7 @@ static int32_t tot_filter_callback(uint8_t* buffer)
 			time_offset_polarity = (uint8_t) (
 								   (*(desc_ptr+5)) & 0x01);
 			printf("Time offset polarity %d \n", time_offset_polarity);
-					
+
 			time_offset = (uint16_t) (
 						  (*(desc_ptr+6) << 8) + (*(desc_ptr+7)));
 		   	printf("Time offset %x \n", time_offset);
@@ -227,7 +227,7 @@ static int32_t tot_filter_callback(uint8_t* buffer)
 			break;
 		}
 
-		printf("Not found local time offster desc \n");	
+		printf("Not found local time offster desc \n");
 		desc_ptr += desc_len;
 		descriptor_loop_len -= desc_len;
 	}
@@ -577,19 +577,32 @@ static int8_t set_timezone(tdt_time_t* utc_time, uint8_t polarity, uint8_t hour_
 		if (utc_time->minute > 59)
 		{
 			utc_time->minute -= 60;
-		}
-				
+            if (++utc_time->hour > 23)
+            {
+                utc_time->hour = 0;
+            }
+        }
+
 	} else if (polarity == 1)
 	{
 		if (utc_time->hour - hour_offset < 0)
 		{
 			utc_time->hour = 24 - ((int8_t)hour_offset - utc_time->hour);
-		}
+		} else
+        {
+            utc_time->hour -= hour_offset;
+        }
 
 		if (utc_time->minute - minute_offset < 0)
 		{
 			utc_time->minute = 60 - ((int8_t)minute_offset - utc_time->minute);
-		}
-	
+		    if (--utc_time->hour < 0)
+            {
+                utc_time->hour = 23;
+            }
+        } else
+        {
+            utc_time->minute -= minute_offset;
+        }
 	}
 }
