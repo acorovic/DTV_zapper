@@ -137,7 +137,6 @@ void graphic_draw_channel_info(channel_t channel)
 {
 	sprintf(channel_no_str, "%d", channel.channel_no);
 	sprintf(channel_audio_pid_str, "Channel audio PID:%d", channel.audio_pid);
-	printf("channel has video %d \n", channel.has_video);
 	if (channel.has_video)
 	{
 		draw_radio_screen_flag = 0;

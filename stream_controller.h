@@ -57,6 +57,7 @@ int8_t demux_init(uint32_t PID, uint32_t tableID, int32_t(*demux_filter_callback
 int8_t demux_deinit(int32_t(*demux_filter_callback)(uint8_t* buffer));
 
 int8_t player_play_channel(channel_t* channel);
+int8_t player_play_init_channel(channel_t* channel, enum t_StreamType video_type, enum t_StreamType audio_type);
 tdt_time_t player_get_time();
 int8_t player_stop_channel();
 int8_t player_set_volume(uint8_t vol_level);

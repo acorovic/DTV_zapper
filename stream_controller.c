@@ -315,6 +315,62 @@ int8_t player_play_channel(channel_t* channel)
 	return NO_ERROR;
 }
 
+int8_t player_play_init_channel(channel_t* channel, enum t_StreamType video_type, enum t_StreamType audio_type)
+{
+	t_Error status;
+	service_t channel_info;
+	pmt_t channel_pmt;
+
+	channel_info = service_info_array[channel->channel_no];
+	filter_pmt(channel_info.pid);
+	channel_pmt = pmt_info;
+	
+	if (channel_pmt.audio_pid[0] != channel->audio_pid)
+	{
+		audio_running = 0;
+		return ERROR;
+	}
+
+	if (channel_pmt.has_video == 1)
+	{
+/* Check if video PID read from init file is the same as the one from the PMT for program no */
+		if (channel->video_pid == channel_pmt.video_pid)
+		{
+			status = Player_Stream_Create(player_handle, source_handle, 
+										channel_pmt.video_pid, video_type,
+										&video_handle);
+			ASSERT_TDP_RESULT(status, "video stream");
+			channel->video_pid = channel_pmt.video_pid;
+			channel->has_video = 1;
+			video_running = 1;
+		} else
+		{
+			video_running = 0;
+			return ERROR;
+		}
+	} else 
+	{
+		channel->has_video = 0;
+		video_running = 0;
+	}
+
+	status = Player_Stream_Create(player_handle, source_handle,
+								channel->audio_pid, audio_type,
+								&audio_handle);
+	// Add guard to close video stream if audio stream failed!!!
+	ASSERT_TDP_RESULT(status, "audio stream");
+	channel->audio_pid = channel_pmt.audio_pid[0];
+
+	if (channel_pmt.has_teletext)
+	{
+		channel->has_teletext = 1;
+	}
+
+	audio_running = 1;
+
+	return NO_ERROR;
+}
+
 tdt_time_t player_get_time() {
 	tdt_time_t ret_val = {99, 99};
 

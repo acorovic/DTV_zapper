@@ -162,15 +162,27 @@ static void add_value(char* value, int8_t option) {
     switch (option)
     {
     case 0:
-        parser_state.freq.is_read = 1;
-        strcpy(parser_state.freq.value, value);
-        break;
+		if (strlen(value) > 1)
+		{
+        	parser_state.freq.is_read = 1;
+        	strcpy(parser_state.freq.value, value);
+        } else 
+		{
+			parser_state.freq.is_read = 0;
+		}
+		break;
     case 1:
-        parser_state.band.is_read = 1;
-        strcpy(parser_state.band.value, value);
+        if (strlen(value) > 1)
+		{
+			parser_state.band.is_read = 1;
+        	strcpy(parser_state.band.value, value);
+		} else
+		{
+			parser_state.band.is_read = 0;
+		}
         break;
     case 2:
-        if (strlen(value) >= MAX_VALUE_LENGTH)
+        if (strlen(value) >= MAX_VALUE_LENGTH && strlen(value) <= 1)
 		{
         	parser_state.mod.is_read = 0;
 			printf("Cannot add value %s, too long \n", value);
@@ -181,15 +193,27 @@ static void add_value(char* value, int8_t option) {
 		}
 		break;
     case 3:
-        parser_state.v_pid.is_read = 1;
-        strcpy(parser_state.v_pid.value, value);
+        if (strlen(value) > 1)
+		{
+			parser_state.v_pid.is_read = 1;
+        	strcpy(parser_state.v_pid.value, value);
+		} else
+		{
+			parser_state.v_pid.is_read = 0;
+		}
         break;
     case 4:
-        parser_state.a_pid.is_read = 1;
-        strcpy(parser_state.a_pid.value, value);
+      	if (strlen(value) > 1)
+		{
+			parser_state.a_pid.is_read = 1;
+        	strcpy(parser_state.a_pid.value, value);
+		} else 
+		{
+			parser_state.a_pid.is_read = 0;
+		}
         break;
     case 5:
-        if (strlen(value) >= MAX_VALUE_LENGTH)
+        if (strlen(value) >= MAX_VALUE_LENGTH && strlen(value) <= 1)
 		{
         	parser_state.v_type.is_read = 0;
 			printf("Cannot add value %s, too long \n", value);
@@ -200,7 +224,7 @@ static void add_value(char* value, int8_t option) {
 		}
 		break;
     case 6:
-        if (strlen(value) >= MAX_VALUE_LENGTH)
+        if (strlen(value) >= MAX_VALUE_LENGTH && strlen(value) <= 1)
 		{
         	parser_state.a_type.is_read = 0;
 			printf("Cannot add value %s, too long \n", value);
@@ -211,8 +235,14 @@ static void add_value(char* value, int8_t option) {
 		}		
 		break;
     case 7:
-        parser_state.p_no.is_read = 1;
-        strcpy(parser_state.p_no.value, value);
+      	if (strlen(value) > 1)
+		{
+			parser_state.p_no.is_read = 1;
+        	strcpy(parser_state.p_no.value, value);
+		} else
+		{
+			parser_state.p_no.is_read = 0;
+		}
         break;
     }
 }
