@@ -6,8 +6,10 @@
 #include <string.h>
 #include <stdint.h>
 
+#define MAX_VALUE_LENGTH 30
+
 typedef struct init_options {
-    char value[11];
+    char value[MAX_VALUE_LENGTH];
     uint8_t is_read;
 } init_options_t;
 
@@ -24,7 +26,7 @@ typedef struct parser_s {
 
 int8_t init_file_parse(const char* file_path);
 int32_t parser_get_frequency();
-int32_t parser_get_band();
+int32_t parser_get_bandwidth();
 char* parser_get_modulation();
 int32_t parser_get_video_pid();
 int32_t parser_get_audio_pid();

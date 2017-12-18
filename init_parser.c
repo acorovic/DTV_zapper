@@ -60,7 +60,7 @@ int32_t parser_get_frequency() {
     }
 }
 
-int32_t parser_get_band() {
+int32_t parser_get_bandwidth() {
     int32_t ret_val = -1;
     char* ptr;
 
@@ -115,7 +115,7 @@ int32_t parser_get_audio_pid() {
 char* parser_get_video_type() {
     if (parser_state.v_type.is_read == 1)
     {
-        return parser_state.v_type.value;
+	    return parser_state.v_type.value;
     } else
     {
         return NULL;
@@ -170,9 +170,16 @@ static void add_value(char* value, int8_t option) {
         strcpy(parser_state.band.value, value);
         break;
     case 2:
-        parser_state.mod.is_read = 1;
-        strcpy(parser_state.mod.value, value);
-        break;
+        if (strlen(value) >= MAX_VALUE_LENGTH)
+		{
+        	parser_state.mod.is_read = 0;
+			printf("Cannot add value %s, too long \n", value);
+		} else
+		{
+			strcpy(parser_state.mod.value, value);
+        	parser_state.mod.is_read = 1;
+		}
+		break;
     case 3:
         parser_state.v_pid.is_read = 1;
         strcpy(parser_state.v_pid.value, value);
@@ -182,13 +189,27 @@ static void add_value(char* value, int8_t option) {
         strcpy(parser_state.a_pid.value, value);
         break;
     case 5:
-        parser_state.v_type.is_read = 1;
-        strcpy(parser_state.v_type.value, value);
-        break;
+        if (strlen(value) >= MAX_VALUE_LENGTH)
+		{
+        	parser_state.v_type.is_read = 0;
+			printf("Cannot add value %s, too long \n", value);
+		} else
+		{
+			strcpy(parser_state.v_type.value, value);
+        	parser_state.v_type.is_read = 1;
+		}
+		break;
     case 6:
-        parser_state.a_type.is_read = 1;
-        strcpy(parser_state.a_type.value, value);
-        break;
+        if (strlen(value) >= MAX_VALUE_LENGTH)
+		{
+        	parser_state.a_type.is_read = 0;
+			printf("Cannot add value %s, too long \n", value);
+		} else
+		{
+			strcpy(parser_state.a_type.value, value);
+        	parser_state.a_type.is_read = 1;
+		}		
+		break;
     case 7:
         parser_state.p_no.is_read = 1;
         strcpy(parser_state.p_no.value, value);

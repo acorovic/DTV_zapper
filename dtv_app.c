@@ -2,6 +2,7 @@
 #include "graphic_controller.h"
 #include "stream_controller.h"
 #include "init_parser.h"
+#include "tdp_api.h"
 #include <semaphore.h>
 
 /* Struct used to repesent app state */
@@ -14,6 +15,7 @@ struct app_state
 
 static struct app_state stb_state;
 static sem_t semaphore_channel;
+static const char init_file_path[] = "./init.ini";
 
 /* Callback used to decode keypress from remote */
 static void decode_keypress(uint16_t keycode)
@@ -26,15 +28,14 @@ static void decode_keypress(uint16_t keycode)
 			printf("Channel audio PID: %d \n", stb_state.current_channel.audio_pid);
 			printf("Channel has teletext %d \n", stb_state.current_channel.has_teletext);
 			graphic_draw_time(player_get_time());
-            break;
+            graphic_draw_channel_info(stb_state.current_channel);
+			break;
         case KEYCODE_P_PLUS:
             if (++stb_state.current_channel.channel_no > MAX_CHANNEL)
             {
                 stb_state.current_channel.channel_no = MIN_CHANNEL;
             }
 			sem_post(&semaphore_channel);
-			//player_play_channel(&stb_state.current_channel);
-			//graphic_draw_channel_info(stb_state.current_channel);
             break;
         case KEYCODE_P_MINUS:
             if (--stb_state.current_channel.channel_no < MIN_CHANNEL)
@@ -42,8 +43,6 @@ static void decode_keypress(uint16_t keycode)
                 stb_state.current_channel.channel_no = MAX_CHANNEL;
             }
 			sem_post(&semaphore_channel);
-			//player_play_channel(&stb_state.current_channel);
-			//graphic_draw_channel_info(stb_state.current_channel);
             break;
         case KEYCODE_VOL_PLUS:
             if (++stb_state.volume_level > MAX_VOL_LEVEL)
@@ -78,7 +77,114 @@ static void decode_keypress(uint16_t keycode)
 int32_t main()
 {
     int8_t status;
+	int32_t init_freq;
+	int32_t init_band;
+	int32_t init_video_pid;
+	int32_t init_audio_pid;
+	int32_t init_program_no;
+	enum t_Module init_modulation;
+	enum t_StreamType init_video_type;
+	enum t_StreamType init_audio_type;
+	char* str;
+
 	sem_init(&semaphore_channel, 0, 1);
+
+/* Reading from init file */
+	init_file_parse(init_file_path);
+/* Check if frequency is read */
+	init_freq = parser_get_frequency();
+	if (init_freq == -1)
+	{
+		printf("\"frequency\" not found in config \n");
+		return -1;
+	}
+/* Check if bandwidth is read */
+	init_band = parser_get_bandwidth();
+	if (init_band == -1)
+	{
+		printf("\"bandwidth\" not found in config \n");
+		return -1;
+	}
+/* Check if modulation is read */
+	str = parser_get_modulation();
+	if (str == NULL)
+	{
+		printf("\"modulation\" not found in config \n");
+	} else
+	{
+		if (strcmp(str, "DVB_T\n") == 0)
+		{
+			init_modulation = DVB_T;
+		} else if (strcmp(str, "DVB_T2\n") == 0) 
+		{
+			init_modulation = DVB_T2;
+		} else 
+		{
+			printf("Unknown option %s for modulation\n");
+			return -1;
+		}
+	}
+/* Check if video pid is read */
+	init_video_pid = parser_get_video_pid();
+	if (init_video_pid == -1)
+	{
+		printf("\"video_pid\" not found in config \n");
+		return -1;
+	}
+/* Check if audio pid is read */
+	init_audio_pid = parser_get_audio_pid();
+	if (init_audio_pid == -1)
+	{
+		printf("\"audio_pid\" not found in config \n");
+		return -1;
+	
+	}
+/* Check if video type is read */
+	str = parser_get_video_type();
+	if (str == NULL)
+	{
+		printf("\"video_type\" not found in config \n");
+	} else
+	{
+		if (strcmp(str, "VIDEO_TYPE_MPEG2\n") == 0)
+		{
+			init_video_type = VIDEO_TYPE_MPEG2;
+		} else 
+		{
+			printf("Unknown option %s for video type\n");
+			return -1;
+		}
+	}
+/* Check if audio type is read */
+	str = parser_get_audio_type();
+	if (str == NULL)
+	{
+		printf("\"audio_type\" not found in config \n");
+	} else
+	{
+		if (strcmp(str, "AUDIO_TYPE_MPEG_AUDIO\n") == 0)
+		{
+			init_audio_type = AUDIO_TYPE_MPEG_AUDIO;
+		} else 
+		{
+			printf("Unknown option %s for audio type\n");
+			return -1;
+		}
+	}
+/* Check if program no is read */
+	init_program_no = parser_get_program_number();
+	if (init_program_no == -1)
+	{
+		printf("\"program_number\" not found in config \n");
+		return -1;
+	} else
+	{
+		if (init_program_no < MIN_CHANNEL || init_program_no > MAX_CHANNEL)
+		{
+			printf("program number %d too high!\n", init_program_no);
+			return -1;
+		}
+	}
 
     stb_state.app_running = 1;
     stb_state.current_channel.channel_no = MIN_CHANNEL;
@@ -111,5 +217,6 @@ int32_t main()
 	status = graphic_deinit();
     status = remote_deinit();
     status = tuner_deinit();
-    return 0;
+
+	return 0;
 }
