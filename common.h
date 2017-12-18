@@ -11,10 +11,15 @@
 #define KEYCODE_P_PLUS 		62
 #define KEYCODE_EXIT 		102
 #define KEYCODE_INFO 		358
-/* Check codes !!!!!!!!!!! */
 #define KEYCODE_VOL_PLUS    63
 #define KEYCODE_VOL_MINUS   64
 #define KEYCODE_VOL_MUTE    60
+
+/* APP constraints */
+#define MAX_CHANNEL     6
+#define MIN_CHANNEL     0
+#define MIN_VOL_LEVEL   0
+#define MAX_VOL_LEVEL   10
 
 /* error codes */
 #define NO_ERR 		0
