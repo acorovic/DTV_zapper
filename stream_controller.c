@@ -99,6 +99,13 @@ static int32_t pmt_filter_callback(uint8_t* buffer)
     n = program_section_length;
     program_section_ptr = buffer + 12 + program_info_length;
 
+
+	/* reset values */
+	pmt_info.video_pid = 0;
+	pmt_info.has_video = 0;
+	pmt_info.audio_pid[1] = 0;
+	pmt_info.audio_pid[2] = 0;
+
     while (n > 0)
     {
         uint8_t stream_type;

@@ -2,6 +2,7 @@
 #include "graphic_controller.h"
 #include "stream_controller.h"
 #include "init_parser.h"
+#include <semaphore.h>
 
 /* Struct used to repesent app state */
 struct app_state
@@ -12,6 +13,7 @@ struct app_state
 };
 
 static struct app_state stb_state;
+static sem_t semaphore_channel;
 
 /* Callback used to decode keypress from remote */
 static void decode_keypress(uint16_t keycode)
@@ -30,16 +32,18 @@ static void decode_keypress(uint16_t keycode)
             {
                 stb_state.current_channel.channel_no = MIN_CHANNEL;
             }
-			player_play_channel(&stb_state.current_channel);
-			graphic_draw_channel_info(stb_state.current_channel);
+			sem_post(&semaphore_channel);
+			//player_play_channel(&stb_state.current_channel);
+			//graphic_draw_channel_info(stb_state.current_channel);
             break;
         case KEYCODE_P_MINUS:
             if (--stb_state.current_channel.channel_no < MIN_CHANNEL)
             {
                 stb_state.current_channel.channel_no = MAX_CHANNEL;
             }
-			player_play_channel(&stb_state.current_channel);
-			graphic_draw_channel_info(stb_state.current_channel);
+			sem_post(&semaphore_channel);
+			//player_play_channel(&stb_state.current_channel);
+			//graphic_draw_channel_info(stb_state.current_channel);
             break;
         case KEYCODE_VOL_PLUS:
             if (++stb_state.volume_level > MAX_VOL_LEVEL)
@@ -64,6 +68,7 @@ static void decode_keypress(uint16_t keycode)
 			break;
         case KEYCODE_EXIT:
             stb_state.app_running = 0;
+			sem_post(&semaphore_channel);
             break;
         default:
             printf("Press P+, P-, INFO or EXIT !\n");
@@ -73,6 +78,7 @@ static void decode_keypress(uint16_t keycode)
 int32_t main()
 {
     int8_t status;
+	sem_init(&semaphore_channel, 0, 1);
 
     stb_state.app_running = 1;
     stb_state.current_channel.channel_no = MIN_CHANNEL;
@@ -93,8 +99,14 @@ int32_t main()
 	player_set_volume(stb_state.volume_level);
 	graphic_draw_channel_info(stb_state.current_channel);
 	while (stb_state.app_running) {
-        
-    }
+        sem_wait(&semaphore_channel);
+    	if (stb_state.app_running == 0)
+		{
+			break;
+		}
+		player_play_channel(&stb_state.current_channel);
+		graphic_draw_channel_info(stb_state.current_channel);
+	}
 
 	status = graphic_deinit();
     status = remote_deinit();

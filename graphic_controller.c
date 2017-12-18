@@ -12,16 +12,17 @@ static int32_t screen_width;
 static int32_t screen_height;
 
 /* Paths to font and image folder */
-static char font_path[] = "/home/galois/fonts/DejaVuSans.ttf";
-static char image_folder[] = "./images/";
+static const char font_path[] = "/home/galois/fonts/DejaVuSans.ttf";
+static const char image_folder[] = "./images/";
 
 /* Helper vars used for drawing */
 static char channel_no_str[5];
 static char channel_video_pid_str[30];
 static char channel_audio_pid_str[30];
 static int8_t channel_has_teletext;
-static char channel_teletext_y_str[] = "Teletext: AVAILABLE";
-static char channel_teletext_n_str[] = "Teletext: UNAVAILABLE";
+static const char channel_teletext_y_str[] = "Teletext: AVAILABLE";
+static const char channel_teletext_n_str[] = "Teletext: UNAVAILABLE";
+static const char radio_str[] = "Radio playing...";
 static int8_t channel_has_video;
 static char time_str[10];
 static int8_t volume_level;
@@ -34,6 +35,7 @@ static int8_t render_running;
 static int8_t draw_channel_info_flag;
 static int8_t draw_time_flag;
 static int8_t draw_volume_flag;
+static int8_t draw_radio_screen_flag;
 
 /* Timers used to hide graphic elements */
 static custom_timer_t timer_time;
@@ -44,6 +46,7 @@ static custom_timer_t timer_volume;
 static void draw_channel_info_fcn();
 static void draw_time_fcn();
 static void draw_volume_fcn();
+static void draw_radio_screen_fcn();
 
 /* Callbacks which clear flags after timers expired */
 static void clr_channel_info_flag();
@@ -134,12 +137,15 @@ void graphic_draw_channel_info(channel_t channel)
 {
 	sprintf(channel_no_str, "%d", channel.channel_no);
 	sprintf(channel_audio_pid_str, "Channel audio PID:%d", channel.audio_pid);
+	printf("channel has video %d \n", channel.has_video);
 	if (channel.has_video)
 	{
+		draw_radio_screen_flag = 0;
 		channel_has_video = 1;
 		sprintf(channel_video_pid_str, "Channel video PID:%d", channel.video_pid);
 	} else
 	{
+		draw_radio_screen_flag = 1;
 		channel_has_video = 0;
 	}
 
@@ -177,6 +183,13 @@ static void* render_fcn()
 		/* Clear graphic */
 		DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0x00, 0x00));
 		DFBCHECK(primary->FillRectangle(primary, 0, 0, screen_width, screen_height));
+	
+		/* Check radio screen flag */
+		if (draw_radio_screen_flag)
+		{
+			draw_radio_screen_fcn();
+		}
+		
 		/* Check channel no flag */
 		if (draw_channel_info_flag)
         {
@@ -265,6 +278,30 @@ static void draw_volume_fcn()
     DFBCHECK(primary->Blit(primary, volume_image_surface[volume_level], NULL, 50, screen_height-250));
 }
 
+static void draw_radio_screen_fcn()
+{
+	/* Black screen */
+    DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0x00, 0xff));
+	DFBCHECK(primary->FillRectangle(primary, 0, 0, screen_width, screen_height));
+
+	/* Make banner background */
+    DFBCHECK(primary->SetColor(primary, 0x00, 0xff, 0x00, 0xff));
+	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2,
+									 screen_height/2 - TIME_BANNER_HEIGHT,
+									 TIME_BANNER_WIDTH,
+									 TIME_BANNER_HEIGHT));
+
+	DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0xff, 0xff));
+	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2 + 10,
+									 screen_height/2 - TIME_BANNER_HEIGHT + 10,
+									TIME_BANNER_WIDTH - 20,
+									TIME_BANNER_HEIGHT - 20));
+	DFBCHECK(primary->SetColor(primary, 0xff, 0x00, 0x00, 0xff));
+	/* Write time */
+    DFBCHECK(primary->DrawString(primary, radio_str, -1, screen_width/2 - 120,
+								screen_height/2 - TIME_BANNER_HEIGHT/2, DSTF_LEFT));
+}
+
 /* Callbacks called when timers expire to clear drawing flags */
 static void clr_channel_info_flag()
 {
@@ -325,7 +362,7 @@ static void format_time_str(tdt_time_t time, char* str)
     /* PM */
     } else
     {
-        strcpy(str, "PM");
+        strcpy(str, "PM ");
         if (time.hour > 12)
         {
          time.hour -= 12;
