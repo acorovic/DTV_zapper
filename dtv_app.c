@@ -25,6 +25,10 @@ static int8_t requested_channel;
 
 /* Helper function used to add time on time which is received from TDT */
 static tdt_time_t add_sys_time(tdt_time_t stb_time, uint8_t hour_offset, uint8_t min_offset);
+/* Helper function used to check if all values from init_file are read */
+static int8_t check_init_values(int32_t* init_freq, int32_t* init_band, int32_t* init_video_pid,
+							int32_t* init_audio_pid, int32_t* init_p_no, enum t_Module* init_mod,
+     						 enum t_StreamType* init_vtype, enum t_StreamType* init_atype);
 /* Callback used to decode keypress from remote */
 static void decode_keypress(uint16_t keycode);
 
@@ -46,108 +50,12 @@ int32_t main()
 
 /* Reading from init file */
 	init_file_parse(init_file_path);
-/* Check if frequency is read */
-	init_freq = parser_get_frequency();
-	if (init_freq == -1)
+	status = check_init_values(&init_freq, &init_band, &init_video_pid, &init_audio_pid,
+							&init_program_no, &init_modulation, &init_video_type, &init_audio_type);
+	if (status == -1)
 	{
-		printf("\"frequency\" not found in config \n");
 		return -1;
 	}
-	printf("Frequency read from init file: %d \n", init_freq);
-/* Check if bandwidth is read */
-	init_band = parser_get_bandwidth();
-	if (init_band == -1)
-	{
-		printf("\"bandwidth\" not found in config \n");
-		return -1;
-	}
-	printf("Bandwidth read from init file: %d \n", init_band);
-/* Check if modulation is read */
-	str = parser_get_modulation();
-	if (str == NULL)
-	{
-		printf("\"modulation\" not found in config \n");
-	} else
-	{
-		if (strcmp(str, "DVB_T\n") == 0)
-		{
-			init_modulation = DVB_T;
-		} else if (strcmp(str, "DVB_T2\n") == 0) 
-		{
-			init_modulation = DVB_T2;
-		} else 
-		{
-			printf("Unknown option %s for modulation\n");
-			return -1;
-		}
-	}
-	printf("Modulation read from init file: %s", str);
-/* Check if video pid is read */
-	init_video_pid = parser_get_video_pid();
-	if (init_video_pid == -1)
-	{
-		printf("\"video_pid\" not found in config \n");
-		return -1;
-	}
-	printf("Video_pid read from init file: %d \n", init_video_pid);
-/* Check if audio pid is read */
-	init_audio_pid = parser_get_audio_pid();
-	if (init_audio_pid == -1)
-	{
-		printf("\"audio_pid\" not found in config \n");
-		return -1;
-	
-	}
-	printf("Audio_pid read from init file: %d \n", init_audio_pid);
-/* Check if video type is read */
-	str = parser_get_video_type();
-	if (str == NULL)
-	{
-		printf("\"video_type\" not found in config \n");
-	} else
-	{
-		if (strcmp(str, "VIDEO_TYPE_MPEG2\n") == 0)
-		{
-			init_video_type = VIDEO_TYPE_MPEG2;
-		} else 
-		{
-			printf("Unknown option %s for video type\n");
-			return -1;
-		}
-	}
-	printf("Video_type read from init file: %s", str);
-/* Check if audio type is read */
-	str = parser_get_audio_type();
-	if (str == NULL)
-	{
-		printf("\"audio_type\" not found in config \n");
-	} else
-	{
-		if (strcmp(str, "AUDIO_TYPE_MPEG_AUDIO\n") == 0)
-		{
-			init_audio_type = AUDIO_TYPE_MPEG_AUDIO;
-		} else 
-		{
-			printf("Unknown option %s for audio type\n");
-			return -1;
-		}
-	}
-	printf("Audito_type read from init file: %s", str);
-/* Check if program no is read */
-	init_program_no = parser_get_program_number();
-	if (init_program_no == -1)
-	{
-		printf("\"program_number\" not found in config \n");
-		return -1;
-	} else
-	{
-		if (init_program_no < MIN_CHANNEL || init_program_no > MAX_CHANNEL)
-		{
-			printf("program number %d too high!\n", init_program_no);
-			return -1;
-		}
-	}
-	printf("Program_number read from init file: %d \n", init_program_no);
 	printf("********************************************** \n");
 /* Configure STB */
     stb_state.app_running = 1;
@@ -333,6 +241,117 @@ static void decode_keypress(uint16_t keycode)
     }
 }
 
+static int8_t check_init_values(int32_t* init_freq, int32_t* init_band, int32_t* init_video_pid,
+							int32_t* init_audio_pid, int32_t* init_p_no, enum t_Module* init_mod,
+     						 enum t_StreamType* init_vtype, enum t_StreamType* init_atype)
+{
+	char* str;
+	
+/* Check if frequency is read */
+	*init_freq = parser_get_frequency();
+	if (*init_freq == -1)
+	{
+		printf("\"frequency\" not found in config \n");
+		return -1;
+	}
+	printf("Frequency read from init file: %d \n", *init_freq);
+/* Check if bandwidth is read */
+	*init_band = parser_get_bandwidth();
+	if (*init_band == -1)
+	{
+		printf("\"bandwidth\" not found in config \n");
+		return -1;
+	}
+	printf("Bandwidth read from init file: %d \n", *init_band);
+/* Check if modulation is read */
+	str = parser_get_modulation();
+	if (str == NULL)
+	{
+		printf("\"modulation\" not found in config \n");
+	} else
+	{
+		if (strcmp(str, "DVB_T\n") == 0)
+		{
+			*init_mod = DVB_T;
+		} else if (strcmp(str, "DVB_T2\n") == 0) 
+		{
+			*init_mod = DVB_T2;
+		} else 
+		{
+			printf("Unknown option %s for modulation\n");
+			return -1;
+		}
+	}
+	printf("Modulation read from init file: %s", str);
+/* Check if video pid is read */
+	*init_video_pid = parser_get_video_pid();
+	if (*init_video_pid == -1)
+	{
+		printf("\"video_pid\" not found in config \n");
+		return -1;
+	}
+	printf("Video_pid read from init file: %d \n", *init_video_pid);
+/* Check if audio pid is read */
+	*init_audio_pid = parser_get_audio_pid();
+	if (*init_audio_pid == -1)
+	{
+		printf("\"audio_pid\" not found in config \n");
+		return -1;
+	
+	}
+	printf("Audio_pid read from init file: %d \n", *init_audio_pid);
+/* Check if video type is read */
+	str = parser_get_video_type();
+	if (str == NULL)
+	{
+		printf("\"video_type\" not found in config \n");
+	} else
+	{
+		if (strcmp(str, "VIDEO_TYPE_MPEG2\n") == 0)
+		{
+			*init_vtype = VIDEO_TYPE_MPEG2;
+		} else 
+		{
+			printf("Unknown option %s for video type\n");
+			return -1;
+		}
+	}
+	printf("Video_type read from init file: %s", str);
+/* Check if audio type is read */
+	str = parser_get_audio_type();
+	if (str == NULL)
+	{
+		printf("\"audio_type\" not found in config \n");
+	} else
+	{
+		if (strcmp(str, "AUDIO_TYPE_MPEG_AUDIO\n") == 0)
+		{
+			*init_atype = AUDIO_TYPE_MPEG_AUDIO;
+		} else 
+		{
+			printf("Unknown option %s for audio type\n");
+			return -1;
+		}
+	}
+	printf("Audito_type read from init file: %s", str);
+/* Check if program no is read */
+	*init_p_no = parser_get_program_number();
+	if (*init_p_no == -1)
+	{
+		printf("\"program_number\" not found in config \n");
+		return -1;
+	} else
+	{
+		if (*init_p_no < MIN_CHANNEL || *init_p_no > MAX_CHANNEL)
+		{
+			printf("program number %d too high!\n", *init_p_no);
+			return -1;
+		}
+	}
+	printf("Program_number read from init file: %d \n", *init_p_no);
+	
+	return 0;	
+}
 static tdt_time_t add_sys_time(tdt_time_t stb_time, uint8_t hour_offset, uint8_t min_offset)
 {
 	stb_time.hour += hour_offset;
