@@ -14,7 +14,13 @@
 #define KEYCODE_VOL_PLUS    63
 #define KEYCODE_VOL_MINUS   64
 #define KEYCODE_VOL_MUTE    60
-
+#define KEYCODE_P_1			2
+#define KEYCODE_P_2			3
+#define KEYCODE_P_3			4
+#define KEYCODE_P_4			5
+#define KEYCODE_P_5			6
+#define KEYCODE_P_6			7
+#define KEYCODE_P_0			11
 /* APP constraints */
 #define MAX_CHANNEL     6
 #define MIN_CHANNEL     0

@@ -21,6 +21,8 @@ struct app_state
 static struct app_state stb_state;
 static sem_t semaphore_channel;
 static const char init_file_path[] = "./init.ini";
+static int8_t requested_channel;
+
 /* Helper function used to add time on time which is received from TDT */
 static tdt_time_t add_sys_time(tdt_time_t stb_time, uint8_t hour_offset, uint8_t min_offset);
 /* Callback used to decode keypress from remote */
@@ -213,8 +215,12 @@ int32_t main()
 		{
 			break;
 		}
-		player_play_channel(&stb_state.current_channel);
-		usleep(2000000);
+		if (requested_channel != stb_state.current_channel.channel_no)
+		{
+			stb_state.current_channel.channel_no = requested_channel;
+			player_play_channel(&stb_state.current_channel);
+			usleep(2000000);
+		}
 		graphic_draw_channel_info(stb_state.current_channel);
 	}
 
@@ -230,7 +236,8 @@ static void decode_keypress(uint16_t keycode)
     time_t raw_time;
 	struct tm* current_time_offset;
 	tdt_time_t current_time;
-	
+	int8_t channel_remote;
+
 	switch (keycode)
     {
         case KEYCODE_INFO:
@@ -250,17 +257,23 @@ static void decode_keypress(uint16_t keycode)
 			graphic_draw_channel_info(stb_state.current_channel);
 			break;
         case KEYCODE_P_PLUS:
-            if (++stb_state.current_channel.channel_no > MAX_CHANNEL)
+            if (stb_state.current_channel.channel_no + 1 > MAX_CHANNEL)
             {
-                stb_state.current_channel.channel_no = MIN_CHANNEL;
-            }
+                requested_channel = MIN_CHANNEL;
+            } else 
+			{
+				requested_channel = stb_state.current_channel.channel_no + 1;
+			}
 			sem_post(&semaphore_channel);
             break;
         case KEYCODE_P_MINUS:
-            if (--stb_state.current_channel.channel_no < MIN_CHANNEL)
+            if (stb_state.current_channel.channel_no - 1 < MIN_CHANNEL)
             {
-                stb_state.current_channel.channel_no = MAX_CHANNEL;
-            }
+                requested_channel = MAX_CHANNEL;
+            } else
+			{
+				requested_channel = stb_state.current_channel.channel_no - 1;
+			}
 			sem_post(&semaphore_channel);
             break;
         case KEYCODE_VOL_PLUS:
@@ -296,6 +309,25 @@ static void decode_keypress(uint16_t keycode)
             stb_state.app_running = 0;
 			sem_post(&semaphore_channel);
             break;
+		case KEYCODE_P_1 ... KEYCODE_P_6:
+			requested_channel = keycode - 1;
+			if (requested_channel != stb_state.current_channel.channel_no)
+			{
+				sem_post(&semaphore_channel);
+			} else
+			{
+				graphic_draw_channel_info(stb_state.current_channel);
+			}
+			break;
+		case KEYCODE_P_0:
+			requested_channel = 0;
+			if (requested_channel != stb_state.current_channel.channel_no)
+			{
+				sem_post(&semaphore_channel);
+			} else
+			{
+				graphic_draw_channel_info(stb_state.current_channel);
+			}	
         default:
             printf("Press P+, P-, INFO or EXIT !\n");
     }
