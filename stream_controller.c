@@ -575,15 +575,17 @@ int8_t filter_tdt()
 	ASSERT_TDP_RESULT(status, "set TDT demux");
 
     gettimeofday(&now, NULL);
-	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME;
-	time_to_wait.tv_nsec = now.tv_usec + LOCK_TIME;
+	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME + 20;
+	time_to_wait.tv_nsec = now.tv_usec + LOCK_TIME + 20;
 
     pthread_mutex_lock(&mutex);
     rt = pthread_cond_timedwait(&condition_tdt, &mutex, &time_to_wait);
     if (rt == ETIMEDOUT)
     {
         printf("Couldn't parse TDT!\n");
-	    return ERROR;
+		status = demux_deinit(tdt_filter_callback);
+    	ASSERT_TDP_RESULT(status, "TDT filter callback free demux");
+    	return ERROR;
     }
     pthread_mutex_unlock(&mutex);
 
@@ -605,8 +607,8 @@ int8_t filter_tot()
 	ASSERT_TDP_RESULT(status, "set TOT demux");
 
     gettimeofday(&now, NULL);
-	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME;
-	time_to_wait.tv_nsec = now.tv_usec + LOCK_TIME;
+	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME + 20;
+	time_to_wait.tv_nsec = now.tv_usec + LOCK_TIME + 20;
 
     pthread_mutex_lock(&mutex);
     rt = pthread_cond_timedwait(&condition_tot, &mutex, &time_to_wait);

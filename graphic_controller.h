@@ -89,5 +89,6 @@ void graphic_draw_time(tdt_time_t time);
  * @param volume_level current volume level on STB
  */
 void graphic_draw_volume_level(int8_t volume_level);
-
+void graphic_draw_boot_screen();
+void graphic_remove_boot_screen();
 #endif
