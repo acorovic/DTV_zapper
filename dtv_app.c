@@ -88,8 +88,6 @@ int32_t main()
 	}
 /* Show booting screen */
 	graphic_draw_boot_screen();
-/* Filter PAT */
-	filter_pat();
 /* Get start time */
 	//stb_state.start_time_tdt = player_get_time();
 	time(&stb_state.start_time_sys);

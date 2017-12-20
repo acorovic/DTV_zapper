@@ -42,9 +42,6 @@
 #define TOT_TABLEID	0x73
 #define TOT_DESC	0x58
 
-typedef struct time{
-	int8_t hour;
-	int8_t minute;
-} tdt_time_t;
+
 
 #endif /* COMMON_H */
