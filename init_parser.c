@@ -2,13 +2,27 @@
 
 static const char *valid_options[] = {"frequency", "bandwidth", "modulation",
                                      "video_pid", "audio_pid", "video_type",
-                                     "audio_type", "program_number"};
-static const char delimiter[] = "=";
+                                     "audio_type", "program_number"};       /**< Options which are checked when parsing file */
+static const char delimiter[] = "=";                                        /**< Delimiter option=value */
 
-static parser_state_t parser_state;
+static parser_state_t parser_state;                                         /**< Helper var which reperesent parser state */
 
-/* Helper functions */
+
+/**
+ * @brief Helper function checks value and adds it to parser state
+ *
+ * @param value String read from file
+ * @param option Index of option from valid_options
+ */
 static void add_value(char* value, int8_t option);
+
+/**
+ * @brief Helper function checks if option is valid
+ *
+ * @param option Option string read from file
+ *
+ * @return -1 option is not valid, else index of option in valid_options 
+ */
 static int8_t check_option(char* option);
 
 int8_t init_file_parse(const char* file_path)
@@ -27,7 +41,7 @@ int8_t init_file_parse(const char* file_path)
         printf("Can't open file %s \n", file_path);
         return -1;
     }
-
+/* Parse file line by line */
     while ((read = getline(&line, &len, file_ptr)) != -1)
     {
         option = strtok(line, delimiter);
@@ -166,7 +180,7 @@ static void add_value(char* value, int8_t option) {
 		{
         	parser_state.freq.is_read = 1;
         	strcpy(parser_state.freq.value, value);
-        } else 
+        } else
 		{
 			parser_state.freq.is_read = 0;
 		}
@@ -207,7 +221,7 @@ static void add_value(char* value, int8_t option) {
 		{
 			parser_state.a_pid.is_read = 1;
         	strcpy(parser_state.a_pid.value, value);
-		} else 
+		} else
 		{
 			parser_state.a_pid.is_read = 0;
 		}
@@ -232,8 +246,8 @@ static void add_value(char* value, int8_t option) {
 		{
 			strcpy(parser_state.a_type.value, value);
         	parser_state.a_type.is_read = 1;
-		}		
-		break;
+		}
+        break;
     case 7:
       	if (strlen(value) > 1)
 		{
