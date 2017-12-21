@@ -33,7 +33,12 @@ int8_t filter_pat(service_t* pat_info)
 	t_Error status;
 
     status = demux_init(PAT_PID, PAT_TABLEID, pat_filter_callback);
-	ASSERT_TDP_RESULT(status, "set pat demux");
+	if (status == ERR)
+    {
+        printf("Couldn't set PAT filter!\n");
+        demux_deinit(pat_filter_callback);
+        return ERR;
+    }
 
     gettimeofday(&now, NULL);
 	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME;
@@ -45,18 +50,17 @@ int8_t filter_pat(service_t* pat_info)
     {
         printf("Couldn't parse PAT!\n");
         demux_deinit(pat_filter_callback);
-        return ERROR;
+        return ERR;
     }
     pthread_mutex_unlock(&mutex);
-
-    status = demux_deinit(pat_filter_callback);
-    ASSERT_TDP_RESULT(status, "pat filter callback free demux");
     printf("PAT parsed \n");
-
     /* Copy from received PAT table to parameter */
     memcpy(pat_info, &service_info_array, sizeof(service_info_array));
 
-    return NO_ERROR;
+    status = demux_deinit(pat_filter_callback);
+    ASSERT_TDP_RESULT(status, "PAT filter callback free demux");
+
+    return NO_ERR;
 }
 
 int8_t filter_pmt(uint16_t channel_pid, pmt_t* channel_pmt_info)
@@ -67,9 +71,13 @@ int8_t filter_pmt(uint16_t channel_pid, pmt_t* channel_pmt_info)
 	t_Error status;
 
 	printf("channel pid filter_pmt %d\n", channel_pid);
-
     status = demux_init(channel_pid, PMT_TABLEID, pmt_filter_callback);
-	ASSERT_TDP_RESULT(status, "set pmt demux");
+    if (status == ERR)
+    {
+        printf("Couldn't set PMT filter!\n");
+        demux_deinit(pmt_filter_callback);
+        return ERR;
+    }
 
     gettimeofday(&now, NULL);
 	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME;
@@ -81,36 +89,56 @@ int8_t filter_pmt(uint16_t channel_pid, pmt_t* channel_pmt_info)
     {
         printf("Couldn't parse PMT!\n");
         demux_deinit(pmt_filter_callback);
-	    return ERROR;
+	    return ERR;
     }
     pthread_mutex_unlock(&mutex);
-
-    status = demux_deinit(pmt_filter_callback);
-    ASSERT_TDP_RESULT(status, "pmt filter callback free demux");
     printf("PMT parsed \n");
-
     /* Copy from received PMT info to parameter */
     memcpy(channel_pmt_info, &pmt_info, sizeof(pmt_info));
 
-    return NO_ERROR;
-}
+    status = demux_deinit(pmt_filter_callback);
+    ASSERT_TDP_RESULT(status, "PMT filter callback free demux");
 
+    return NO_ERR;
+}
 
 int8_t filter_tdt(tdt_time_t* player_time)
 {
     int8_t rt;
 	t_Error status;
+    struct timeval now;
+    struct timespec time_to_wait;
 
 	status = demux_init(TDT_PID, TDT_TABLEID, tdt_filter_callback);
 	if (status == -1)
 	{
-		status = demux_deinit(tdt_filter_callback);
-		return ERROR;
+		printf("Couldn't set TOT filter! \n");
+        status = demux_deinit(tdt_filter_callback);
+		return ERR;
 	}
 	printf("TDT filter set \n");
-	status = demux_deinit(tdt_filter_callback);
-    
-	return status;
+
+    gettimeofday(&now, NULL);
+    time_to_wait.tv_sec = now.tv_sec + LOCK_TIME_TDT_TOT;
+    time_to_wait.tv_nsec = now.tv_usec + LOCK_TIME_TDT_TOT;
+
+    pthread_mutex_lock(&mutex);
+    rt = pthread_cond_timedwait(&condition_tdt, &mutex, &time_to_wait);
+    if (rt == ETIMEDOUT)
+    {
+        printf("Couldn't parse TDT! Timeout expired! \n");
+        status = demux_init(tdt_filter_callback);
+        return ERR;
+    }
+    pthread_mutex_unlock(&mutex);
+    printf("TDT parsed! \n");
+    /* Copy from received TDT */
+    memcpy(player_time, &tdt_time, sizeof(tdt_time));
+
+    status = demux_deinit(tdt_filter_callback);
+    ASSERT_TDP_RESULT(status, "TDT filter callback free demux");
+
+    return NO_ERR;
 }
 
 int8_t filter_tot(tdt_time_t* player_time)
@@ -121,11 +149,15 @@ int8_t filter_tot(tdt_time_t* player_time)
 	t_Error status;
 
     status = demux_init(TOT_PID, TOT_TABLEID, tot_filter_callback);
-	ASSERT_TDP_RESULT(status, "set TOT demux");
-
+    if (status == -1)
+    {
+        printf("Couldn't set TOT filter! \n");
+        status = demux_deinit(tot_filter_callback);
+        return ERR;
+    }
     gettimeofday(&now, NULL);
-	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME + 20;
-	time_to_wait.tv_nsec = now.tv_usec + LOCK_TIME + 20;
+	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME_TDT_TOT;
+	time_to_wait.tv_nsec = now.tv_usec + LOCK_TIME_TDT_TOT;
 
     pthread_mutex_lock(&mutex);
     rt = pthread_cond_timedwait(&condition_tot, &mutex, &time_to_wait);
@@ -136,14 +168,44 @@ int8_t filter_tot(tdt_time_t* player_time)
     }
     pthread_mutex_unlock(&mutex);
 
+    /* Copy from received TDT */
+    memcpy(player_time, &tdt_time, sizeof(tdt_time));
+
     status = demux_deinit(tot_filter_callback);
     ASSERT_TDP_RESULT(status, "TOT filter callback free demux");
     printf("TOT parsed \n");
 
-    /* Copy from received TDT */
-    memcpy(player_time, &tdt_time, sizeof(tdt_time));
-
     return NO_ERROR;
+}
+
+int8_t parser_get_time_completed() {
+	return time_read_success;
+}
+
+int8_t parser_get_timezone_completed() {
+	return timezone_is_set;
+}
+
+void stop_tdt_parsing() {
+	demux_deinit(tdt_filter_callback);
+}
+
+void start_tdt_parsing() {
+	demux_init(TDT_PID, TDT_TABLEID, tdt_filter_callback);
+}
+
+void stop_tot_parsing() {
+	demux_deinit(tot_filter_callback);
+}
+
+void start_tot_parsing() {
+	demux_init(TOT_PID, TOT_TABLEID, tot_filter_callback);
+}
+
+tdt_time_t parser_get_time() {
+	tdt_time.tdt_completed = time_read_success;
+	tdt_time.tot_completed = timezone_is_set;
+    return tdt_time;
 }
 
 static int32_t pat_filter_callback(uint8_t* buffer)
@@ -273,35 +335,6 @@ static int32_t pmt_filter_callback(uint8_t* buffer)
 	return NO_ERR;
 }
 
-int8_t parser_get_time_completed() {
-	return time_read_success;
-}
-
-int8_t parser_get_timezone_completed() {
-	return timezone_is_set;
-}
-
-void stop_tdt_parsing() {
-	demux_deinit(tdt_filter_callback);
-}
-
-void start_tdt_parsing() {
-	demux_init(TDT_PID, TDT_TABLEID, tdt_filter_callback);
-}
-
-void stop_tot_parsing() {
-	demux_deinit(tot_filter_callback);
-}
-
-void start_tot_parsing() {
-	demux_init(TOT_PID, TOT_TABLEID, tot_filter_callback);
-}
-
-tdt_time_t parser_get_time() {
-	tdt_time.tdt_completed = time_read_success;
-	return tdt_time;
-}
-
 static int32_t tdt_filter_callback(uint8_t* buffer)
 {
 	uint16_t MJD = 0;
@@ -322,7 +355,11 @@ static int32_t tdt_filter_callback(uint8_t* buffer)
 
 	demux_deinit(tdt_filter_callback);
 	time_read_success = 1;
-	printf("TDT table parsed \n");
+
+    pthread_mutex_lock(&mutex);
+    pthread_cond_signal(&condition_tdt);
+    pthread_mutex_unlock(&mutex);
+    printf("TDT table parsed \n");
 
 	return NO_ERR;
 }
@@ -341,7 +378,7 @@ static int32_t tot_filter_callback(uint8_t* buffer)
 	printf("TOT arrived \n");
 
 	descriptor_loop_len = (uint16_t) (
-						  (*(buffer+8) << 8) + (*(buffer+9))	
+						  (*(buffer+8) << 8) + (*(buffer+9))
 						  & 0x0fff);
 
 	printf("descriptor loop len %d\n", descriptor_loop_len);
@@ -385,8 +422,10 @@ static int32_t tot_filter_callback(uint8_t* buffer)
 		desc_ptr += desc_len;
 		descriptor_loop_len -= desc_len;
 	}
-
-	printf("TOT table parsed \n");
+	pthread_mutex_lock(&mutex);
+    pthread_cond_signal(&condition_tot);
+    pthread_mutex_unlock(&mutex);
+    printf("TOT table parsed \n");
 
 	return NO_ERR;
 }

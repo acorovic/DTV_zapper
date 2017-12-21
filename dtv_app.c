@@ -88,13 +88,8 @@ int32_t main()
 		tuner_deinit();
 		return ERR;
 	}
-/* Show booting screen */
-	graphic_draw_boot_screen();
 /* Get start time */
-	//stb_state.start_time_tdt = player_get_time();
 	time(&stb_state.start_time_sys);
-/* Remove booting screen */
-	graphic_remove_boot_screen();
 /* Play intit channel, PMT */
 	status = player_play_init_channel(&stb_state.current_channel, init_video_type, init_audio_type);
 	if (status == ERROR)
