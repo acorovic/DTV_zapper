@@ -11,6 +11,10 @@ static uint32_t audio_handle;
 
 static int8_t video_running = 0;
 static int8_t audio_running = 0;
+
+static int8_t tdt_filtering_set = 0;
+static int8_t tot_filtering_set = 0;
+
 /* Array which stores channel infos */
 static service_t service_info_array[10];
 /* Struct which stores channel specific info */
@@ -40,8 +44,28 @@ int8_t player_play_channel(channel_t* channel)
 		video_running = 0;
 	}
 
+	if (parser_get_time_completed() == 0 && tdt_filtering_set == 1)
+	{
+		stop_tdt_parsing();
+		tdt_filtering_set = 0;
+	} else if (parser_get_timezone_completed() == 0 && tot_filtering_set == 1)
+	{
+		stop_tot_parsing();
+		tot_filtering_set = 0;
+	}
+
 	channel_info = service_info_array[channel->channel_no];
 	filter_pmt(channel_info.pid, &pmt_info);
+	if (parser_get_time_completed() == 0 && tdt_filtering_set == 0)
+	{
+		start_tdt_parsing();
+		tdt_filtering_set = 1;
+	} else if (parser_get_timezone_completed() == 0 && tot_filtering_set == 0)
+	{
+		start_tot_parsing();
+		tot_filtering_set = 1;
+	}
+
 	channel_pmt = pmt_info;
 
 	if (channel_pmt.has_video == 1)
@@ -139,12 +163,17 @@ int8_t player_play_init_channel(channel_t* channel, enum t_StreamType video_type
 }
 
 tdt_time_t player_get_time() {
-	tdt_time_t ret_val = {0, 0};
+	if (parser_get_time_completed() == 0 && tdt_filtering_set == 0)
+	{
+		start_tdt_parsing();
+		tdt_filtering_set = 1;
+	} else if (parser_get_timezone_completed() == 0 && tot_filtering_set == 0)
+	{
+		start_tot_parsing();
+		tot_filtering_set = 1;
+	}
 
-    filter_tdt(&ret_val);
-    filter_tot(&ret_val);
-
-	return ret_val;
+	return parser_get_time();
 }
 
 int8_t player_set_volume(uint8_t vol_level)

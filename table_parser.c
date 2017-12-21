@@ -19,6 +19,9 @@ static int32_t pmt_filter_callback(uint8_t* buffer);
 static int32_t tdt_filter_callback(uint8_t* buffer);
 static int32_t tot_filter_callback(uint8_t* buffer);
 
+static pthread_t tdt_thread;
+static void* tdt_loop;
+
 /* Helper function to change time according to TOT table offsets */
 static int8_t set_timezone(tdt_time_t* utc_time, uint8_t polarity, uint8_t hour_offset, uint8_t minute_offset);
 
@@ -96,36 +99,18 @@ int8_t filter_pmt(uint16_t channel_pid, pmt_t* channel_pmt_info)
 int8_t filter_tdt(tdt_time_t* player_time)
 {
     int8_t rt;
-    struct timeval now;
-	struct timespec time_to_wait;
 	t_Error status;
 
-    status = demux_init(TDT_PID, TDT_TABLEID, tdt_filter_callback);
-	ASSERT_TDP_RESULT(status, "set TDT demux");
-
-    gettimeofday(&now, NULL);
-	time_to_wait.tv_sec = now.tv_sec + LOCK_TIME + 20;
-	time_to_wait.tv_nsec = now.tv_usec + LOCK_TIME + 20;
-
-    pthread_mutex_lock(&mutex);
-    rt = pthread_cond_timedwait(&condition_tdt, &mutex, &time_to_wait);
-    if (rt == ETIMEDOUT)
-    {
-        printf("Couldn't parse TDT!\n");
+	status = demux_init(TDT_PID, TDT_TABLEID, tdt_filter_callback);
+	if (status == -1)
+	{
 		status = demux_deinit(tdt_filter_callback);
-    	ASSERT_TDP_RESULT(status, "TDT filter callback free demux");
-    	return ERROR;
-    }
-    pthread_mutex_unlock(&mutex);
-
-    status = demux_deinit(tdt_filter_callback);
-    ASSERT_TDP_RESULT(status, "TDT filter callback free demux");
-    printf("TDT parsed \n");
-
-    /* Copy from received TDT */
-    memcpy(player_time, &tdt_time, sizeof(tdt_time));
-
-    return NO_ERROR;
+		return ERROR;
+	}
+	printf("TDT filter set \n");
+	status = demux_deinit(tdt_filter_callback);
+    
+	return status;
 }
 
 int8_t filter_tot(tdt_time_t* player_time)
@@ -288,6 +273,35 @@ static int32_t pmt_filter_callback(uint8_t* buffer)
 	return NO_ERR;
 }
 
+int8_t parser_get_time_completed() {
+	return time_read_success;
+}
+
+int8_t parser_get_timezone_completed() {
+	return timezone_is_set;
+}
+
+void stop_tdt_parsing() {
+	demux_deinit(tdt_filter_callback);
+}
+
+void start_tdt_parsing() {
+	demux_init(TDT_PID, TDT_TABLEID, tdt_filter_callback);
+}
+
+void stop_tot_parsing() {
+	demux_deinit(tot_filter_callback);
+}
+
+void start_tot_parsing() {
+	demux_init(TOT_PID, TOT_TABLEID, tot_filter_callback);
+}
+
+tdt_time_t parser_get_time() {
+	tdt_time.tdt_completed = time_read_success;
+	return tdt_time;
+}
+
 static int32_t tdt_filter_callback(uint8_t* buffer)
 {
 	uint16_t MJD = 0;
@@ -306,10 +320,8 @@ static int32_t tdt_filter_callback(uint8_t* buffer)
 
 	printf("hour: %d minute: %d\n",tdt_time.hour, tdt_time.minute);
 
+	demux_deinit(tdt_filter_callback);
 	time_read_success = 1;
-	pthread_mutex_lock(&mutex);
-	pthread_cond_signal(&condition_tdt);
-	pthread_mutex_unlock(&mutex);
 	printf("TDT table parsed \n");
 
 	return NO_ERR;
@@ -362,7 +374,9 @@ static int32_t tot_filter_callback(uint8_t* buffer)
             if (timezone_is_set == 0)
             {
 			    set_timezone(&tdt_time, time_offset_polarity, hour_offset, minute_offset);
-                timezone_is_set = 1;
+                tdt_time.tot_completed = 1;
+				timezone_is_set = 1;
+				demux_deinit(tot_filter_callback);
             }
 			break;
 		}

@@ -14,6 +14,7 @@ struct app_state
     channel_t current_channel;
     int8_t volume_level;
 	int8_t volume_muted;
+	int8_t tdt_collected;
 	time_t start_time_sys;
 	tdt_time_t start_time_tdt;
 };
@@ -63,6 +64,7 @@ int32_t main()
 	stb_state.current_channel.audio_pid = init_audio_pid;
 	stb_state.current_channel.video_pid = init_video_pid;
 	stb_state.volume_muted = 0;
+	stb_state.tdt_collected = 0;
 	if (init_video_pid == -1)
 	{
 		stb_state.current_channel.has_video = 0;
@@ -151,7 +153,19 @@ static void decode_keypress(uint16_t keycode)
 			printf("Channel video PID: %d \n", stb_state.current_channel.video_pid);
 			printf("Channel audio PID: %d \n", stb_state.current_channel.audio_pid);
 			printf("Channel has teletext %d \n", stb_state.current_channel.has_teletext);
-			//graphic_draw_time(player_get_time());
+			stb_state.start_time_tdt = player_get_time();
+			/*	
+		if (stb_state.tdt_collected == 0)
+			{
+				stb_state.start_time_tdt = player_get_time();
+				if (stb_state.start_time_tdt.hour == -1)
+				{
+					//draw shitty time
+				} else 
+				{
+					stb_state.tdt_collected == 1;
+				}
+			}*/
             time(&raw_time);
 /* Calculate time offset from systime */
 			raw_time -= stb_state.start_time_sys;

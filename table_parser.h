@@ -54,11 +54,18 @@ typedef struct service {
 typedef struct time{
 	int8_t hour;
 	int8_t minute;
+	int8_t tdt_completed;
+	int8_t tot_completed;
 } tdt_time_t;
 
 int8_t filter_pat(service_t* pat_info);
 int8_t filter_pmt(uint16_t channel_pid, pmt_t* channel_pmt_info);
 int8_t filter_tdt(tdt_time_t* player_time);
 int8_t filter_tot(tdt_time_t* player_time);
+int8_t parser_get_time_completed();
+void stop_tdt_parsing();
+void start_tdt_parsing();
+tdt_time_t parser_get_time();
+
 
 #endif

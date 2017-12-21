@@ -23,6 +23,7 @@ static int8_t channel_has_teletext;
 static const char channel_teletext_y_str[] = "Teletext: AVAILABLE";
 static const char channel_teletext_n_str[] = "Teletext: UNAVAILABLE";
 static const char radio_str[] = "Radio playing...";
+//static const char loading_timezone_str[] = "Loading timezone...";
 static int8_t channel_has_video;
 static char time_str[10];
 static int8_t volume_level;
@@ -37,6 +38,8 @@ static int8_t draw_time_flag;
 static int8_t draw_volume_flag;
 static int8_t draw_radio_screen_flag;
 static int8_t draw_boot_screen_flag;
+
+static int8_t draw_tot_loading_flag;
 /* Timers used to hide graphic elements */
 static custom_timer_t timer_time;
 static custom_timer_t timer_channel;
@@ -163,8 +166,23 @@ void graphic_draw_channel_info(channel_t channel)
 void graphic_draw_time(tdt_time_t time)
 {
 	//sprintf(time_str, "%d:%d", time.hour, time.minute);
-	format_time_str(time, time_str);
-    custom_timer_start(&timer_time, 3);
+	if (time.tdt_completed == 0 || time.tot_completed == 0) 
+	{
+		sprintf(time_str, "Loading\0");	
+	} else
+	{
+		format_time_str(time, time_str);
+	}
+/*
+	if (time.tot_completed == 0)
+	{
+		draw_tot_loading_flag = 1;
+	} else
+	{
+		draw_tot_loading_flag = 0;
+	}
+  */
+	custom_timer_start(&timer_time, 3);
 	draw_time_flag = 1;
 }
 
@@ -280,9 +298,16 @@ static void draw_time_fcn()
 									TIME_BANNER_WIDTH - 20,
 									TIME_BANNER_HEIGHT - 20));
 	DFBCHECK(primary->SetColor(primary, 0xff, 0xff, 0xff, 0xff));
+	
 	/* Write time */
     DFBCHECK(primary->DrawString(primary, time_str, -1, screen_width/2 - 100,
 								screen_height - TIME_BANNER_HEIGHT/2, DSTF_LEFT));
+	/*if (draw_tot_loading_flag)
+	{
+		 DFBCHECK(primary->DrawString(primary, loading_timezone_str, -1, screen_width/2 - 200,
+								screen_height - TIME_BANNER_HEIGHT/2 + 40, DSTF_LEFT));
+
+	}*/
 }
 
 static void draw_volume_fcn()
@@ -314,6 +339,7 @@ static void draw_radio_screen_fcn()
 	/* Write time */
     DFBCHECK(primary->DrawString(primary, radio_str, -1, screen_width/2 - 160,
 								screen_height/2 - TIME_BANNER_HEIGHT/2, DSTF_LEFT));
+
 }
 
 static void draw_boot_screen_fcn() 
@@ -335,10 +361,8 @@ static void draw_boot_screen_fcn()
 									TIME_BANNER_WIDTH - 20,
 									TIME_BANNER_HEIGHT - 20));
 	DFBCHECK(primary->SetColor(primary, 0xff, 0xff, 0xff, 0xff));
-	/* Write time */
     DFBCHECK(primary->DrawString(primary, "Booting...", -1, screen_width/2 - 150,
 								screen_height/2 - TIME_BANNER_HEIGHT/2, DSTF_LEFT));
-
 }
 
 /* Callbacks called when timers expire to clear drawing flags */
