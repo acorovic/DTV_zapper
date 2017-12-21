@@ -26,7 +26,7 @@ static tdt_time_t tdt_time;
 /* Tuner callback */
 static int32_t tuner_callback(t_LockStatus status);
 
-int8_t player_play_channel(channel_t* channel)
+int8_t player_play_channel(channel_t* channel, enum t_StreamType video_type, enum t_StreamType audio_type)
 {
 	t_Error status;
 	service_t channel_info;
@@ -75,7 +75,7 @@ int8_t player_play_channel(channel_t* channel)
 	if (channel_pmt.has_video == 1)
 	{
 		status = Player_Stream_Create(player_handle, source_handle, 
-									channel_pmt.video_pid, VIDEO_TYPE_MPEG2,
+									channel_pmt.video_pid, video_type,
 									&video_handle);
 		ASSERT_TDP_RESULT(status, "video stream");
 		channel->video_pid = channel_pmt.video_pid;
@@ -87,7 +87,7 @@ int8_t player_play_channel(channel_t* channel)
 	}
 
 	status = Player_Stream_Create(player_handle, source_handle,
-								channel_pmt.audio_pid[0], AUDIO_TYPE_MPEG_AUDIO,
+								channel_pmt.audio_pid[0], audio_type,
 								&audio_handle);
 	ASSERT_TDP_RESULT(status, "audio stream");
 	channel->audio_pid = channel_pmt.audio_pid[0];
@@ -206,7 +206,7 @@ int8_t player_set_volume(uint8_t vol_level)
 	return NO_ERR;
 }
 
-int8_t tuner_init(uint32_t frequency)
+int8_t tuner_init(uint32_t frequency, int32_t bandwidth, enum t_Module modulation)
 {
 	t_Error status;
 	struct timeval now;
@@ -235,7 +235,7 @@ int8_t tuner_init(uint32_t frequency)
 	status = Tuner_Register_Status_Callback(tuner_callback);
 	ASSERT_TDP_RESULT(status, "tuner register callback");
 
-	status = Tuner_Lock_To_Frequency(frequency, 8, DVB_T);
+	status = Tuner_Lock_To_Frequency(frequency, bandwidth, modulation);
 	ASSERT_TDP_RESULT(status, "tuner lock");
 
 

@@ -29,7 +29,7 @@
 
 /* error codes */
 #define NO_ERR 		0
-#define ERR			1
+#define ERR			-1
 #define PTHREAD_ERROR 	2
 
 /* table infos */

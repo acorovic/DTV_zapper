@@ -74,7 +74,7 @@ int32_t main()
 	}
 	stb_state.volume_level = 5;
 /* Init tuner */
-	status = tuner_init(init_freq);
+	status = tuner_init(init_freq, init_band, init_modulation);
     if (status == ERR)
     {
 		tuner_deinit();
@@ -126,7 +126,7 @@ int32_t main()
 		if (requested_channel != stb_state.current_channel.channel_no)
 		{
 			stb_state.current_channel.channel_no = requested_channel;
-			player_play_channel(&stb_state.current_channel);
+			player_play_channel(&stb_state.current_channel, init_video_type, init_audio_type);
 			usleep(2000000);
 		}
 		graphic_draw_channel_info(stb_state.current_channel);
