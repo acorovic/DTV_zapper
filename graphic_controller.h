@@ -37,8 +37,8 @@ if (err != DFB_OK)                                          \
 #define TIME_BANNER_HEIGHT 		100
 #define FONT_HEIGHT 			40
 #define VOLUME_IMAGE_NO        	11  /**< Number of volume images to be loaded */
-#define CHANNEL_INFO_TEXT_W		20
-#define CHANNEL_INFO_TEXT_H		60
+#define CHANNEL_INFO_TEXT_W		720
+#define CHANNEL_INFO_TEXT_H		870
 #define INFO_INTERVAL_S         3   /**< Time interval in s after which info banner will be hidden */
 #define TIME_INTERVAL_S         3   /**< Time interval in s after which time banner will be hidden */
 

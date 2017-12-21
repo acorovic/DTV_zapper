@@ -46,10 +46,12 @@ int8_t player_play_channel(channel_t* channel)
 
 	if (parser_get_time_completed() == 0 && tdt_filtering_set == 1)
 	{
+		printf("Stopped TDT parsing \n");
 		stop_tdt_parsing();
 		tdt_filtering_set = 0;
 	} else if (parser_get_timezone_completed() == 0 && tot_filtering_set == 1)
 	{
+		printf("Stopped TOT parsing \n");
 		stop_tot_parsing();
 		tot_filtering_set = 0;
 	}
@@ -58,10 +60,12 @@ int8_t player_play_channel(channel_t* channel)
 	filter_pmt(channel_info.pid, &pmt_info);
 	if (parser_get_time_completed() == 0 && tdt_filtering_set == 0)
 	{
+		printf("Started TDT parsing \n");
 		start_tdt_parsing();
 		tdt_filtering_set = 1;
 	} else if (parser_get_timezone_completed() == 0 && tot_filtering_set == 0)
 	{
+		printf("Started TOT parsing \n");
 		start_tot_parsing();
 		tot_filtering_set = 1;
 	}
@@ -163,12 +167,25 @@ int8_t player_play_init_channel(channel_t* channel, enum t_StreamType video_type
 }
 
 tdt_time_t player_get_time() {
+	if (parser_get_time_completed() == 0 && tdt_filtering_set == 1)
+	{
+		printf("Stopped TDT parsing \n");
+		stop_tdt_parsing();
+		tdt_filtering_set = 0;
+	} else if (parser_get_timezone_completed() == 0 && tot_filtering_set == 1)
+	{
+		printf("Stopped TOT parsing \n");
+		stop_tot_parsing();
+		tot_filtering_set = 0;
+	}
 	if (parser_get_time_completed() == 0 && tdt_filtering_set == 0)
 	{
+		printf("Started TDT parsing \n");
 		start_tdt_parsing();
 		tdt_filtering_set = 1;
 	} else if (parser_get_timezone_completed() == 0 && tot_filtering_set == 0)
 	{
+		printf("Started TOT parsing \n");
 		start_tot_parsing();
 		tot_filtering_set = 1;
 	}

@@ -154,18 +154,6 @@ static void decode_keypress(uint16_t keycode)
 			printf("Channel audio PID: %d \n", stb_state.current_channel.audio_pid);
 			printf("Channel has teletext %d \n", stb_state.current_channel.has_teletext);
 			stb_state.start_time_tdt = player_get_time();
-			/*	
-		if (stb_state.tdt_collected == 0)
-			{
-				stb_state.start_time_tdt = player_get_time();
-				if (stb_state.start_time_tdt.hour == -1)
-				{
-					//draw shitty time
-				} else 
-				{
-					stb_state.tdt_collected == 1;
-				}
-			}*/
             time(&raw_time);
 /* Calculate time offset from systime */
 			raw_time -= stb_state.start_time_sys;

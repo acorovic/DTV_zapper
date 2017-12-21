@@ -386,9 +386,6 @@ static int32_t tot_filter_callback(uint8_t* buffer)
 		descriptor_loop_len -= desc_len;
 	}
 
-	pthread_mutex_lock(&mutex);
-	pthread_cond_signal(&condition_tot);
-	pthread_mutex_unlock(&mutex);
 	printf("TOT table parsed \n");
 
 	return NO_ERR;

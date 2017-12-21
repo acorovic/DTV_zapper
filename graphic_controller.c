@@ -8,12 +8,15 @@ static IDirectFBFont *fontInterface = NULL;
 static DFBFontDescription fontDesc;
 static IDirectFBImageProvider* volume_image_provider[VOLUME_IMAGE_NO];
 static IDirectFBSurface* volume_image_surface[VOLUME_IMAGE_NO];
+static IDirectFBImageProvider* radio_image_provider;
+static IDirectFBSurface* radio_image_surface;
 static int32_t screen_width;
 static int32_t screen_height;
 
 /* Paths to font and image folder */
 static const char font_path[] = "/home/galois/fonts/DejaVuSans.ttf";
 static const char image_folder[] = "./images/";
+static const char radio_image_path[] = "./images/radio.png";
 
 /* Helper vars used for drawing */
 static char channel_no_str[5];
@@ -27,6 +30,8 @@ static const char radio_str[] = "Radio playing...";
 static int8_t channel_has_video;
 static char time_str[10];
 static int8_t volume_level;
+static int32_t logo_width;
+static int32_t logo_height;
 
 /* Render thread and flag to end thread */
 static pthread_t render_thread;
@@ -100,6 +105,12 @@ int8_t graphic_init()
         dfbInterface->Release(dfbInterface);
         return ERR;
     }
+	DFBCHECK(dfbInterface->CreateImageProvider(dfbInterface, radio_image_path, &radio_image_provider));
+	DFBCHECK(radio_image_provider->GetSurfaceDescription(radio_image_provider, &surfaceDesc));
+	DFBCHECK(dfbInterface->CreateSurface(dfbInterface, &surfaceDesc, &radio_image_surface));
+	DFBCHECK(radio_image_provider->RenderTo(radio_image_provider, radio_image_surface, NULL));
+	radio_image_provider->Release(radio_image_provider);
+	DFBCHECK(radio_image_surface->GetSize(radio_image_surface, &logo_width, &logo_height));
 
 	custom_timer_create(&timer_channel, clr_channel_info_flag);
 	custom_timer_create(&timer_time, clr_time_flag);
@@ -165,7 +176,6 @@ void graphic_draw_channel_info(channel_t channel)
 
 void graphic_draw_time(tdt_time_t time)
 {
-	//sprintf(time_str, "%d:%d", time.hour, time.minute);
 	if (time.tdt_completed == 0 || time.tot_completed == 0) 
 	{
 		sprintf(time_str, "Loading\0");	
@@ -173,15 +183,6 @@ void graphic_draw_time(tdt_time_t time)
 	{
 		format_time_str(time, time_str);
 	}
-/*
-	if (time.tot_completed == 0)
-	{
-		draw_tot_loading_flag = 1;
-	} else
-	{
-		draw_tot_loading_flag = 0;
-	}
-  */
 	custom_timer_start(&timer_time, 3);
 	draw_time_flag = 1;
 }
@@ -252,11 +253,16 @@ static void draw_channel_info_fcn()
 {
     /* Make banner background */
 	DFBCHECK(primary->SetColor(primary, 0x38, 0x8E, 0x3C, 0xff));
-	DFBCHECK(primary->FillRectangle(primary, 0, 0, CHANNEL_BANNER_WIDTH, CHANNEL_BANNER_HEIGHT));
+
+	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - CHANNEL_BANNER_WIDTH/2,
+								screen_height - CHANNEL_BANNER_HEIGHT - 50,
+								CHANNEL_BANNER_WIDTH, CHANNEL_BANNER_HEIGHT));
 
 	DFBCHECK(primary->SetColor(primary, 0x4C, 0xAF, 0x50, 0xff));
-	DFBCHECK(primary->FillRectangle(primary, 10, 10, CHANNEL_BANNER_WIDTH - 20,
-													 CHANNEL_BANNER_HEIGHT - 20));
+	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - CHANNEL_BANNER_WIDTH/2 + 10,
+									screen_height - CHANNEL_BANNER_HEIGHT - 40,
+									CHANNEL_BANNER_WIDTH - 20,
+									CHANNEL_BANNER_HEIGHT - 20));
 	/* Write channel no */
 	DFBCHECK(primary->SetColor(primary, 0xff, 0xff, 0xff, 0xff));
 	DFBCHECK(primary->DrawString(primary, channel_no_str, -1, CHANNEL_INFO_TEXT_W,
@@ -287,27 +293,21 @@ static void draw_time_fcn()
 {
 	/* Make banner background */
 	DFBCHECK(primary->SetColor(primary, 0x38, 0x8E, 0x3C, 0xff));
-	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2,
-									 screen_height - TIME_BANNER_HEIGHT,
+	DFBCHECK(primary->FillRectangle(primary, 50,
+									 50,
 									 TIME_BANNER_WIDTH,
 									 TIME_BANNER_HEIGHT));
 
 	DFBCHECK(primary->SetColor(primary, 0x4C, 0xAF, 0x50, 0xff));
-	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2 + 10,
-									 screen_height - TIME_BANNER_HEIGHT + 10,
+	DFBCHECK(primary->FillRectangle(primary, 50 + 10,
+									 50 + 10,
 									TIME_BANNER_WIDTH - 20,
 									TIME_BANNER_HEIGHT - 20));
 	DFBCHECK(primary->SetColor(primary, 0xff, 0xff, 0xff, 0xff));
 	
 	/* Write time */
-    DFBCHECK(primary->DrawString(primary, time_str, -1, screen_width/2 - 100,
-								screen_height - TIME_BANNER_HEIGHT/2, DSTF_LEFT));
-	/*if (draw_tot_loading_flag)
-	{
-		 DFBCHECK(primary->DrawString(primary, loading_timezone_str, -1, screen_width/2 - 200,
-								screen_height - TIME_BANNER_HEIGHT/2 + 40, DSTF_LEFT));
-
-	}*/
+    DFBCHECK(primary->DrawString(primary, time_str, -1, 50 + TIME_BANNER_WIDTH/2 - 100,
+								50 + TIME_BANNER_HEIGHT/2, DSTF_LEFT));
 }
 
 static void draw_volume_fcn()
@@ -318,29 +318,34 @@ static void draw_volume_fcn()
 
 static void draw_radio_screen_fcn()
 {
-	/* Black screen */
-    DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0x00, 0xff));
-	DFBCHECK(primary->FillRectangle(primary, 0, 0, screen_width, screen_height));
-
-	/* Make banner background */
 	
-	DFBCHECK(primary->SetColor(primary, 0x38, 0x8E, 0x3C, 0xff));
-	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2,
-									 screen_height/2 - TIME_BANNER_HEIGHT,
-									 TIME_BANNER_WIDTH,
-									 TIME_BANNER_HEIGHT));
+   	DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0x00, 0xff));
+   	DFBCHECK(primary->FillRectangle(primary, 0, 0, screen_width, screen_height));
 
-	DFBCHECK(primary->SetColor(primary, 0x4C, 0xAF, 0x50, 0xff));
-	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2 + 10,
-									 screen_height/2 - TIME_BANNER_HEIGHT + 10,
-									TIME_BANNER_WIDTH - 20,
-									TIME_BANNER_HEIGHT - 20));
+   	DFBCHECK(primary->Blit(primary, radio_image_surface, NULL, (screen_width-logo_width)/2,
+							(screen_height-logo_height)/2));
 	DFBCHECK(primary->SetColor(primary, 0xff, 0xff, 0xff, 0xff));
-	/* Write time */
-    DFBCHECK(primary->DrawString(primary, radio_str, -1, screen_width/2 - 160,
-								screen_height/2 - TIME_BANNER_HEIGHT/2, DSTF_LEFT));
+	DFBCHECK(primary->DrawString(primary, radio_str, -1, screen_width/2 - 160,
+								(screen_height + logo_height)/2 + 40, DSTF_LEFT));
 
-}
+/* Black screen */
+//    DFBCHECK(primary->SetColor(primary, 0x00, 0x00, 0x00, 0xff));
+//	DFBCHECK(primary->FillRectangle(primary, 0, 0, screen_width, screen_height));
+
+//	/* Make banner background */
+//	
+//	DFBCHECK(primary->SetColor(primary, 0x38, 0x8E, 0x3C, 0xff));
+//	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2,
+//									 screen_height/2 - TIME_BANNER_HEIGHT,
+//									 TIME_BANNER_WIDTH,
+//									 TIME_BANNER_HEIGHT));
+//
+//	DFBCHECK(primary->SetColor(primary, 0x4C, 0xAF, 0x50, 0xff));
+//	DFBCHECK(primary->FillRectangle(primary, screen_width/2 - TIME_BANNER_WIDTH/2 + 10,
+//									 screen_height/2 - TIME_BANNER_HEIGHT + 10,
+//									TIME_BANNER_WIDTH - 20,
+//									TIME_BANNER_HEIGHT - 20));
+	}
 
 static void draw_boot_screen_fcn() 
 {
