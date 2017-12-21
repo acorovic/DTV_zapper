@@ -162,6 +162,9 @@ int8_t player_play_init_channel(channel_t* channel, enum t_StreamType video_type
 	}
 
 	audio_running = 1;
+	printf("Started TDT parsing \n");
+	start_tdt_parsing();
+	tdt_filtering_set = 1;
 
 	return NO_ERROR;
 }
