@@ -22,7 +22,6 @@ static pmt_t pmt_info;
 /* Struct which stores time info */
 static tdt_time_t tdt_time;
 
-
 /* Tuner callback */
 static int32_t tuner_callback(t_LockStatus status);
 
@@ -43,12 +42,13 @@ int8_t player_play_channel(channel_t* channel, enum t_StreamType video_type, enu
 		Player_Stream_Remove(player_handle, source_handle, video_handle);
 		video_running = 0;
 	}
-
+	/* Check if TDT is running and stop it */
 	if (parser_get_time_completed() == 0 && tdt_filtering_set == 1)
 	{
 		printf("Stopped TDT parsing \n");
 		stop_tdt_parsing();
 		tdt_filtering_set = 0;
+	/* Check if TOT is running and stop it */
 	} else if (parser_get_timezone_completed() == 0 && tot_filtering_set == 1)
 	{
 		printf("Stopped TOT parsing \n");
@@ -57,21 +57,10 @@ int8_t player_play_channel(channel_t* channel, enum t_StreamType video_type, enu
 	}
 
 	channel_info = service_info_array[channel->channel_no];
+	/* Do PMT filtering */
 	filter_pmt(channel_info.pid, &pmt_info);
-	if (parser_get_time_completed() == 0 && tdt_filtering_set == 0)
-	{
-		printf("Started TDT parsing \n");
-		start_tdt_parsing();
-		tdt_filtering_set = 1;
-	} else if (parser_get_timezone_completed() == 0 && tot_filtering_set == 0)
-	{
-		printf("Started TOT parsing \n");
-		start_tot_parsing();
-		tot_filtering_set = 1;
-	}
-
 	channel_pmt = pmt_info;
-
+	/* Play video stream if available */
 	if (channel_pmt.has_video == 1)
 	{
 		status = Player_Stream_Create(player_handle, source_handle, 
@@ -86,18 +75,33 @@ int8_t player_play_channel(channel_t* channel, enum t_StreamType video_type, enu
 		channel->has_video = 0;
 	}
 
+	/* Play audio stream */
 	status = Player_Stream_Create(player_handle, source_handle,
 								channel_pmt.audio_pid[0], audio_type,
 								&audio_handle);
 	ASSERT_TDP_RESULT(status, "audio stream");
 	channel->audio_pid = channel_pmt.audio_pid[0];
-
+	audio_running = 1;
+	
+	/* Set teletext flag */
 	if (channel_pmt.has_teletext)
 	{
 		channel->has_teletext = 1;
 	}
 
-	audio_running = 1;
+	/* Check if continuing TDT filtering is needed */
+	if (parser_get_time_completed() == 0 && tdt_filtering_set == 0)
+	{
+		printf("Started TDT parsing \n");
+		start_tdt_parsing();
+		tdt_filtering_set = 1;
+	/* Check if continuing TOT filtering is needed */
+	} else if (parser_get_timezone_completed() == 0 && tot_filtering_set == 0)
+	{
+		printf("Started TOT parsing \n");
+		start_tot_parsing();
+		tot_filtering_set = 1;
+	}
 
 	return NO_ERROR;
 }
@@ -120,6 +124,7 @@ int8_t player_play_init_channel(channel_t* channel, enum t_StreamType video_type
     filter_pmt(channel_info.pid, &pmt_info);
 	channel_pmt = pmt_info;
 
+	/* Check if audio pid is the same one as the passed one from the init file */
 	if (channel_pmt.audio_pid[0] != channel->audio_pid)
 	{
 		audio_running = 0;
@@ -128,7 +133,7 @@ int8_t player_play_init_channel(channel_t* channel, enum t_StreamType video_type
 
 	if (channel_pmt.has_video == 1)
 	{
-/* Check if video PID read from init file is the same as the one from the PMT for program no */
+		/* Check if video PID read from init file is the same as the one from the PMT for program no */
 		if (channel->video_pid == channel_pmt.video_pid)
 		{
 			status = Player_Stream_Create(player_handle, source_handle, 
@@ -149,19 +154,19 @@ int8_t player_play_init_channel(channel_t* channel, enum t_StreamType video_type
 		video_running = 0;
 	}
 
+	/* Play audio */
 	status = Player_Stream_Create(player_handle, source_handle,
 								channel->audio_pid, audio_type,
 								&audio_handle);
-	// Add guard to close video stream if audio stream failed!!!
 	ASSERT_TDP_RESULT(status, "audio stream");
 	channel->audio_pid = channel_pmt.audio_pid[0];
-
+	audio_running = 1;
+	
 	if (channel_pmt.has_teletext)
 	{
 		channel->has_teletext = 1;
 	}
 
-	audio_running = 1;
 	printf("Started TDT parsing \n");
 	start_tdt_parsing();
 	tdt_filtering_set = 1;

@@ -59,7 +59,9 @@ static void clr_time_flag();
 static void clr_volume_flag();
 
 /* Helper functions */
+/* Function loads all volume images from image_folder */
 static int8_t load_volume_images();
+/* Function formats tdt_time to AM/PM format */
 static void format_time_str(tdt_time_t time, char* str);
 
 /* Function which executes in separate thread */

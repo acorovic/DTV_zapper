@@ -3,6 +3,7 @@
 #include "stream_controller.h"
 #include "init_parser.h"
 #include "tdp_api.h"
+#include "timer.h"
 #include <semaphore.h>
 #include <time.h>
 #include <pthread.h>
@@ -10,28 +11,35 @@
 /* Struct used to repesent app state */
 struct app_state
 {
-    int8_t app_running;
-    channel_t current_channel;
-    int8_t volume_level;
-	int8_t volume_muted;
-	int8_t tdt_collected;
-	time_t start_time_sys;
-	tdt_time_t start_time_tdt;
+    int8_t app_running;								/**< Channel loop checks this flag */
+    channel_t current_channel;						/**< All info about current channel */
+    int8_t volume_level;							/**< Current volume level */
+	int8_t volume_muted;							/**< Flag to know when to restore volume level */
+	time_t start_time_sys;							/**< System start time */
+	tdt_time_t start_time_tdt;						/**< Received start TDT time, sys time adds on it */
 };
 
-static struct app_state stb_state;
-static sem_t semaphore_channel;
 static const char init_file_path[] = "./init.ini";
+
+static struct app_state stb_state;
 static int8_t requested_channel;
+
+static custom_timer_t program_timer;
+static sem_t semaphore_channel;
 
 /* Helper function used to add time on time which is received from TDT */
 static tdt_time_t add_sys_time(tdt_time_t stb_time, uint8_t hour_offset, uint8_t min_offset);
+
 /* Helper function used to check if all values from init_file are read */
 static int8_t check_init_values(int32_t* init_freq, int32_t* init_band, int32_t* init_video_pid,
 							int32_t* init_audio_pid, int32_t* init_p_no, enum t_Module* init_mod,
      						 enum t_StreamType* init_vtype, enum t_StreamType* init_atype);
+
 /* Callback used to decode keypress from remote */
 static void decode_keypress(uint16_t keycode);
+
+/* Callback used to switch channel after stressing */
+static void program_available();
 
 int32_t main()
 {
@@ -47,6 +55,7 @@ int32_t main()
 	char* str;
 	pthread_t thread;
 
+/* Init channel loop semaphore */
 	sem_init(&semaphore_channel, 0, 0);
 
 /* Reading from init file */
@@ -58,29 +67,25 @@ int32_t main()
 		return -1;
 	}
 	printf("********************************************** \n");
-/* Configure STB */
+
+	/* Configure STB */
     stb_state.app_running = 1;
     stb_state.current_channel.channel_no = init_program_no;
 	stb_state.current_channel.audio_pid = init_audio_pid;
 	stb_state.current_channel.video_pid = init_video_pid;
 	stb_state.volume_muted = 0;
-	stb_state.tdt_collected = 0;
-	if (init_video_pid == -1)
-	{
-		stb_state.current_channel.has_video = 0;
-	} else 
-	{
-		stb_state.current_channel.has_video = 1;
-	}
 	stb_state.volume_level = 5;
-/* Init tuner */
+	requested_channel = stb_state.current_channel.channel_no;
+	
+	/* Init tuner */
 	status = tuner_init(init_freq, init_band, init_modulation);
     if (status == ERR)
     {
 		tuner_deinit();
 		return ERR;
 	}
-/* Init graphic */
+
+	/* Init graphic */
 	status = graphic_init();
 	if (status == ERR)
 	{
@@ -88,9 +93,11 @@ int32_t main()
 		tuner_deinit();
 		return ERR;
 	}
-/* Get start time */
+
+	/* Get start time */
 	time(&stb_state.start_time_sys);
-/* Play intit channel, PMT */
+
+	/* Play init channel, PAT filtering */
 	status = player_play_init_channel(&stb_state.current_channel, init_video_type, init_audio_type);
 	if (status == ERROR)
 	{
@@ -99,9 +106,12 @@ int32_t main()
 		status = tuner_deinit();
 		return ERR;
 	}
+	
+	/* Set volume and draw channel info */
 	player_set_volume(stb_state.volume_level);
 	graphic_draw_channel_info(stb_state.current_channel);
-/* Init remote */	
+
+	/* Init remote */	
 	remote_set_decode_keypress(decode_keypress);
     status = remote_init();
 	if (status == ERR)
@@ -111,7 +121,10 @@ int32_t main()
 		return ERR;
 	}
 
-/* Loop to check changing channel */	
+	/* Create timer for program stressing */
+	custom_timer_create(&program_timer, program_available);
+
+	/* Channel loop */	
 	while (stb_state.app_running) {
         sem_wait(&semaphore_channel);
     	if (stb_state.app_running == 0)
@@ -127,11 +140,18 @@ int32_t main()
 		graphic_draw_channel_info(stb_state.current_channel);
 	}
 
-	status = graphic_deinit();
-    status = remote_deinit();
-    status = tuner_deinit();
-
+	/* Cleanup */
+	custom_timer_delete(&program_timer);
+	graphic_deinit();
+    remote_deinit();
+    tuner_deinit();
+	
 	return 0;
+}
+
+void program_available()
+{
+	sem_post(&semaphore_channel);
 }
 
 static void decode_keypress(uint16_t keycode)
@@ -160,25 +180,28 @@ static void decode_keypress(uint16_t keycode)
 			graphic_draw_channel_info(stb_state.current_channel);
 			break;
         case KEYCODE_P_PLUS:
-            if (stb_state.current_channel.channel_no + 1 > MAX_CHANNEL)
+            if (requested_channel + 1 > MAX_CHANNEL)
             {
                 requested_channel = MIN_CHANNEL;
             } else 
 			{
-				requested_channel = stb_state.current_channel.channel_no + 1;
+				requested_channel++;
 			}
-			sem_post(&semaphore_channel);
-            break;
+			//sem_post(&semaphore_channel);
+            custom_timer_start(&program_timer, 1);
+			break;
         case KEYCODE_P_MINUS:
-            if (stb_state.current_channel.channel_no - 1 < MIN_CHANNEL)
+            if (requested_channel - 1 < MIN_CHANNEL)
             {
                 requested_channel = MAX_CHANNEL;
             } else
 			{
-				requested_channel = stb_state.current_channel.channel_no - 1;
+				requested_channel--;
 			}
-			sem_post(&semaphore_channel);
-            break;
+	//		sem_post(&semaphore_channel);
+      
+            custom_timer_start(&program_timer, 1);
+	        break;
         case KEYCODE_VOL_PLUS:
             if (++stb_state.volume_level > MAX_VOL_LEVEL)
             {
@@ -216,6 +239,8 @@ static void decode_keypress(uint16_t keycode)
 			requested_channel = keycode - 1;
 			if (requested_channel != stb_state.current_channel.channel_no)
 			{
+				
+            	custom_timer_start(&program_timer, 1);
 				sem_post(&semaphore_channel);
 			} else
 			{

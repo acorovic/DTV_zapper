@@ -6,21 +6,22 @@ static pthread_cond_t condition_pmt = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t condition_tdt = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t condition_tot = PTHREAD_COND_INITIALIZER;
 
+/* Global struct which store PAT info */
 static service_t service_info_array[10];
-
+/* Global struct which store PMT info */
 static pmt_t pmt_info;
+/* Global struct which store TDT and TOT info */
 static tdt_time_t tdt_time;
 
-static int8_t time_read_success = 0;
-static int8_t timezone_is_set = 0;
+/* Flags for TDT and TOT */
+static int8_t tdt_read_success = 0;
+static int8_t tot_read_success = 0;
+
 /* Callbacks */
 static int32_t pat_filter_callback(uint8_t* buffer);
 static int32_t pmt_filter_callback(uint8_t* buffer);
 static int32_t tdt_filter_callback(uint8_t* buffer);
 static int32_t tot_filter_callback(uint8_t* buffer);
-
-static pthread_t tdt_thread;
-static void* tdt_loop;
 
 /* Helper function to change time according to TOT table offsets */
 static int8_t set_timezone(tdt_time_t* utc_time, uint8_t polarity, uint8_t hour_offset, uint8_t minute_offset);
@@ -179,11 +180,11 @@ int8_t filter_tot(tdt_time_t* player_time)
 }
 
 int8_t parser_get_time_completed() {
-	return time_read_success;
+	return tdt_read_success;
 }
 
 int8_t parser_get_timezone_completed() {
-	return timezone_is_set;
+	return tot_read_success;
 }
 
 void stop_tdt_parsing() {
@@ -203,8 +204,8 @@ void start_tot_parsing() {
 }
 
 tdt_time_t parser_get_time() {
-	tdt_time.tdt_completed = time_read_success;
-	tdt_time.tot_completed = timezone_is_set;
+	tdt_time.tdt_completed = tdt_read_success;
+	tdt_time.tot_completed = tot_read_success;
     return tdt_time;
 }
 
@@ -354,7 +355,7 @@ static int32_t tdt_filter_callback(uint8_t* buffer)
 	printf("hour: %d minute: %d\n",tdt_time.hour, tdt_time.minute);
 
 	demux_deinit(tdt_filter_callback);
-	time_read_success = 1;
+	tdt_read_success = 1;
 
     pthread_mutex_lock(&mutex);
     pthread_cond_signal(&condition_tdt);
@@ -408,11 +409,11 @@ static int32_t tot_filter_callback(uint8_t* buffer)
 								(*(desc_ptr+5) >> 2));
 			printf("Country region id %d \n", country_region_id);
 
-            if (timezone_is_set == 0)
+            if (tot_read_success == 0)
             {
 			    set_timezone(&tdt_time, time_offset_polarity, hour_offset, minute_offset);
                 tdt_time.tot_completed = 1;
-				timezone_is_set = 1;
+				tot_read_success = 1;
 				demux_deinit(tot_filter_callback);
             }
 			break;
