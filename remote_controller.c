@@ -98,6 +98,10 @@ static void* input_event_task()
             {
                 decode_keypress(event_buf[i].code);
             }
+			if (event_buf[i].code == KEYCODE_EXIT)
+			{
+				break;
+			}
         }
     }
 
