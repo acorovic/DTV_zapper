@@ -41,9 +41,10 @@ static void decode_keypress(uint16_t keycode);
 /* Callback used to switch channel after stressing */
 static void program_available();
 
-int32_t main()
+int32_t main(int argc, char** argv)
 {
     int8_t status;
+	int8_t load_default_init_file = 0;
 	int32_t init_freq;
 	int32_t init_band;
 	int32_t init_video_pid;
@@ -55,11 +56,23 @@ int32_t main()
 	char* str;
 	pthread_t thread;
 
+	if ( argc < 2)
+	{
+		printf("Init file not sent as command line argument!\nLoading init config from %s ! \n", init_file_path);
+		load_default_init_file = 1;
+	}
+
 /* Init channel loop semaphore */
 	sem_init(&semaphore_channel, 0, 0);
 
 /* Reading from init file */
-	init_file_parse(init_file_path);
+	if (load_default_init_file == 1)
+	{
+		init_file_parse(init_file_path);
+	} else 
+	{
+		init_file_parse(argv[1]);
+	}
 	status = check_init_values(&init_freq, &init_band, &init_video_pid, &init_audio_pid,
 							&init_program_no, &init_modulation, &init_video_type, &init_audio_type);
 	if (status == -1)
@@ -134,7 +147,16 @@ int32_t main()
 		if (requested_channel != stb_state.current_channel.channel_no)
 		{
 			stb_state.current_channel.channel_no = requested_channel;
-			player_play_channel(&stb_state.current_channel, init_video_type, init_audio_type);
+			status = player_play_channel(&stb_state.current_channel, init_video_type, init_audio_type);
+		
+			if (status == ERR)
+			{
+				printf("NO SIGNAL! Closing app.. \n");
+				remote_deinit();
+				tuner_deinit();
+				graphic_deinit();
+				return ERR;
+			}
 			usleep(2000000);
 		}
 		graphic_draw_channel_info(stb_state.current_channel);

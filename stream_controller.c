@@ -58,7 +58,12 @@ int8_t player_play_channel(channel_t* channel, enum t_StreamType video_type, enu
 
 	channel_info = service_info_array[channel->channel_no];
 	/* Do PMT filtering */
-	filter_pmt(channel_info.pid, &pmt_info);
+	status = filter_pmt(channel_info.pid, &pmt_info);
+	if (status == ERR)
+	{
+		printf("NO SIGNAL! \n");
+		return status;
+	}
 	channel_pmt = pmt_info;
 	/* Play video stream if available */
 	if (channel_pmt.has_video == 1)
